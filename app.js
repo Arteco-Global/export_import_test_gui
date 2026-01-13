@@ -4,6 +4,8 @@ const importStatus = document.getElementById("importStatus");
 const configFileInput = document.getElementById("configFile");
 const mappingOldFileInput = document.getElementById("mappingOldFile");
 const fetchMappingBtn = document.getElementById("fetchMappingBtn");
+const resetBtn = document.getElementById("resetBtn");
+const resetStatus = document.getElementById("resetStatus");
 const previewConfigFileInput = document.getElementById("previewConfigFile");
 const previewMappingFileInput = document.getElementById("previewMappingFile");
 const previewList = document.getElementById("previewList");
@@ -74,6 +76,39 @@ async function handleExport() {
     setStatus(exportStatus, `Errore download: ${error.message}`, true);
   } finally {
     updateExportState();
+  }
+}
+
+async function handleReset() {
+  const baseUrl = normalizeBaseUrl(baseUrlInput.value);
+  if (!baseUrl) {
+    setStatus(resetStatus, "Inserisci un base URL valido.", true);
+    return;
+  }
+
+  const confirmed = window.confirm("Sei sicuro di voler resettare il server?");
+  if (!confirmed) {
+    setStatus(resetStatus, "Reset annullato.");
+    return;
+  }
+
+  resetBtn.disabled = true;
+  setStatus(resetStatus, "Reset in corso...", false);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/v2/reset`, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+
+    setStatus(resetStatus, "OK");
+  } catch (error) {
+    setStatus(resetStatus, `Errore reset: ${error.message}`, true);
+  } finally {
+    resetBtn.disabled = false;
   }
 }
 
@@ -718,6 +753,7 @@ async function handleImport() {
 baseUrlInput.addEventListener("input", updateImportState);
 baseUrlInput.addEventListener("input", updateExportState);
 exportBtn.addEventListener("click", handleExport);
+resetBtn.addEventListener("click", handleReset);
 configFileInput.addEventListener("change", handleConfigFile);
 mappingOldFileInput.addEventListener("change", handleMappingOldFile);
 fetchMappingBtn.addEventListener("click", handleFetchMapping);
