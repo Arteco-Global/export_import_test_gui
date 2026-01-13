@@ -126,6 +126,45 @@ button.primary:not(:disabled):hover {
   gap: 10px;
 }
 
+.preview {
+  margin-top: 12px;
+}
+
+.preview-list {
+  display: grid;
+  gap: 12px;
+}
+
+.preview-card {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fffdf5;
+  display: grid;
+  gap: 8px;
+}
+
+.preview-card h4 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.preview-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.preview-services {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.preview-services span {
+  display: inline-block;
+  margin-right: 6px;
+}
+
 .association-row {
   display: grid;
   grid-template-columns: minmax(140px, 1fr) minmax(220px, 2fr) minmax(220px, 2fr);

@@ -4,6 +4,10 @@ const importStatus = document.getElementById("importStatus");
 const configFileInput = document.getElementById("configFile");
 const mappingOldFileInput = document.getElementById("mappingOldFile");
 const mappingNewFileInput = document.getElementById("mappingNewFile");
+const previewConfigFileInput = document.getElementById("previewConfigFile");
+const previewMappingFileInput = document.getElementById("previewMappingFile");
+const previewList = document.getElementById("previewList");
+const previewStatus = document.getElementById("previewStatus");
 const exportBtn = document.getElementById("exportBtn");
 const exportStatus = document.getElementById("exportStatus");
 const associationList = document.getElementById("associationList");
@@ -12,6 +16,8 @@ let loadedConfig = null;
 let loadedFilename = "config.json";
 let loadedMappingOld = null;
 let loadedMappingNew = null;
+let previewConfig = null;
+let previewMapping = null;
 const associationSelections = new Map();
 
 function normalizeBaseUrl(value) {
@@ -185,6 +191,125 @@ function clearAssociationList(message) {
   associationList.appendChild(placeholder);
 }
 
+function clearPreviewList(message) {
+  previewList.innerHTML = "";
+  const placeholder = document.createElement("div");
+  placeholder.className = "placeholder";
+  placeholder.textContent = message;
+  previewList.appendChild(placeholder);
+}
+
+function buildMappingLookup(mapping) {
+  const lookup = new Map();
+  if (!mapping || !Array.isArray(mapping.services)) {
+    return lookup;
+  }
+  mapping.services.forEach((service) => {
+    if (
+      service &&
+      typeof service === "object" &&
+      typeof service.serviceGuid === "string" &&
+      typeof service.serviceType === "string"
+    ) {
+      lookup.set(service.serviceGuid, {
+        serviceType: service.serviceType,
+        serviceName: service.serviceName || "",
+      });
+    }
+  });
+  return lookup;
+}
+
+function describeServiceGuid(serviceGuid, lookup, fallbackType = "") {
+  if (!serviceGuid || typeof serviceGuid !== "string") {
+    return "N/D";
+  }
+  const info = lookup.get(serviceGuid);
+  if (!info) {
+    return fallbackType ? `${fallbackType} - ${serviceGuid}` : serviceGuid;
+  }
+  const name = info.serviceName ? ` (${info.serviceName})` : "";
+  return `${info.serviceType}${name} - ${serviceGuid}`;
+}
+
+function renderPreview() {
+  if (!previewConfig || !previewMapping) {
+    clearPreviewList("Carica entrambi i file per vedere l'anteprima.");
+    return;
+  }
+
+  const cameraServices = Array.isArray(previewConfig.cameraServices)
+    ? previewConfig.cameraServices
+    : [];
+  const lookup = buildMappingLookup(previewMapping);
+
+  previewList.innerHTML = "";
+
+  if (cameraServices.length === 0) {
+    clearPreviewList("Nessuna telecamera trovata nel config.");
+    return;
+  }
+
+  cameraServices.forEach((serviceBlock) => {
+    const cameras = Array.isArray(serviceBlock.cameras) ? serviceBlock.cameras : [];
+    cameras.forEach((cameraEntry) => {
+      const camera = cameraEntry.camera || {};
+      const card = document.createElement("div");
+      card.className = "preview-card";
+
+      const title = document.createElement("h4");
+      title.textContent = camera.descr || camera.hostname || camera._id || "Camera";
+      card.appendChild(title);
+
+      const meta = document.createElement("div");
+      meta.className = "preview-meta";
+      meta.textContent = camera._id ? `ID: ${camera._id}` : "ID: N/D";
+      card.appendChild(meta);
+
+      const services = document.createElement("div");
+      services.className = "preview-services";
+
+      const cameraService = document.createElement("div");
+      cameraService.textContent = `Camera service: ${describeServiceGuid(
+        serviceBlock.serviceGuid,
+        lookup,
+        serviceBlock.serviceType
+      )}`;
+      services.appendChild(cameraService);
+
+      const associations = cameraEntry.associations || {};
+      const associationTypes = [
+        { key: "snapshot", label: "Snapshot" },
+        { key: "recording", label: "Recording" },
+        { key: "events", label: "Eventi" },
+      ];
+
+      associationTypes.forEach(({ key, label }) => {
+        const items = Array.isArray(associations[key]) ? associations[key] : [];
+        if (items.length === 0) {
+          const row = document.createElement("div");
+          row.textContent = `${label}: nessuna`;
+          services.appendChild(row);
+          return;
+        }
+
+        items.forEach((item) => {
+          const row = document.createElement("div");
+          row.textContent = `${label}: ${describeServiceGuid(
+            item.serviceGuid,
+            lookup,
+            item.serviceType
+          )}`;
+          services.appendChild(row);
+        });
+      });
+
+      card.appendChild(services);
+      previewList.appendChild(card);
+    });
+  });
+}
+
 function buildAssociationUI(oldServices, newServices) {
   associationSelections.clear();
   associationList.innerHTML = "";
@@ -354,6 +479,50 @@ function handleMappingNewFile(event) {
     });
 }
 
+function handlePreviewConfigFile(event) {
+  const file = event.target.files[0];
+  if (!file) {
+    previewConfig = null;
+    renderPreview();
+    return;
+  }
+
+  setStatus(previewStatus, "Caricamento config...", false);
+  readConfigFile(file)
+    .then((config) => {
+      previewConfig = config;
+      setStatus(previewStatus, "config.json caricato.");
+      renderPreview();
+    })
+    .catch((error) => {
+      previewConfig = null;
+      setStatus(previewStatus, `Errore config: ${error.message}`, true);
+      renderPreview();
+    });
+}
+
+function handlePreviewMappingFile(event) {
+  const file = event.target.files[0];
+  if (!file) {
+    previewMapping = null;
+    renderPreview();
+    return;
+  }
+
+  setStatus(previewStatus, "Caricamento mapping...", false);
+  readConfigFile(file)
+    .then((mapping) => {
+      previewMapping = mapping;
+      setStatus(previewStatus, "mapping.json caricato.");
+      renderPreview();
+    })
+    .catch((error) => {
+      previewMapping = null;
+      setStatus(previewStatus, `Errore mapping: ${error.message}`, true);
+      renderPreview();
+    });
+}
+
 function applyGuidMapToConfig(config, guidMap) {
   function visit(node) {
     if (!node || typeof node !== "object") {
@@ -438,8 +607,11 @@ exportBtn.addEventListener("click", handleExport);
 configFileInput.addEventListener("change", handleConfigFile);
 mappingOldFileInput.addEventListener("change", handleMappingOldFile);
 mappingNewFileInput.addEventListener("change", handleMappingNewFile);
+previewConfigFileInput.addEventListener("change", handlePreviewConfigFile);
+previewMappingFileInput.addEventListener("change", handlePreviewMappingFile);
 importBtn.addEventListener("click", handleImport);
 
 updateImportState();
 updateExportState();
 clearAssociationList("Carica entrambi i mapping per vedere le associazioni.");
+clearPreviewList("Carica entrambi i file per vedere l'anteprima.");

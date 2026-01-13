@@ -30,6 +30,25 @@
       </section>
 
       <section class="card">
+        <h2>Anteprima relazioni</h2>
+        <p>Carica <span class="mono">config.json</span> e <span class="mono">mapping.json</span> per vedere le telecamere e i servizi associati.</p>
+        <div class="field">
+          <label for="previewConfigFile">config.json</label>
+          <input id="previewConfigFile" type="file" accept="application/json" />
+        </div>
+        <div class="field">
+          <label for="previewMappingFile">mapping.json</label>
+          <input id="previewMappingFile" type="file" accept="application/json" />
+        </div>
+        <div class="preview">
+          <div id="previewStatus" class="status"></div>
+          <div id="previewList" class="preview-list">
+            <div class="placeholder">Carica entrambi i file per vedere l'anteprima.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
         <h2>Import</h2>
         <p>Carica il <span class="mono">config.json</span>, il mapping del vecchio server e il mapping del nuovo server.</p>
         <div class="field">
