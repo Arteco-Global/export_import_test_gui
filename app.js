@@ -28,22 +28,23 @@ function setStatus(el, message, isError = false) {
 }
 
 function updateImportState() {
-  importBtn.disabled = normalizeBaseUrl(baseUrlInput.value) === "";
+  const baseUrlReady = normalizeBaseUrl(baseUrlInput.value) !== "";
+  importBtn.disabled = !(baseUrlReady && loadedConfig && loadedMapping);
 }
 
 function updateExportState() {
-  exportBtn.disabled = !loadedConfig;
+  exportBtn.disabled = normalizeBaseUrl(baseUrlInput.value) === "";
 }
 
-async function handleImport() {
+async function handleExport() {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (!baseUrl) {
-    setStatus(importStatus, "Inserisci un base URL valido.", true);
+    setStatus(exportStatus, "Inserisci un base URL valido.", true);
     return;
   }
 
-  importBtn.disabled = true;
-  setStatus(importStatus, "Download in corso...");
+  exportBtn.disabled = true;
+  setStatus(exportStatus, "Download in corso...");
 
   try {
     const response = await fetch(`${baseUrl}/api/v2/export`, {
@@ -64,11 +65,11 @@ async function handleImport() {
     link.remove();
     URL.revokeObjectURL(downloadUrl);
 
-    setStatus(importStatus, "File scaricato. Controlla la cartella Download.");
+    setStatus(exportStatus, "File scaricato. Controlla la cartella Download.");
   } catch (error) {
-    setStatus(importStatus, `Errore download: ${error.message}`, true);
+    setStatus(exportStatus, `Errore download: ${error.message}`, true);
   } finally {
-    updateImportState();
+    updateExportState();
   }
 }
 
@@ -157,7 +158,7 @@ function handleConfigFile(event) {
   const file = event.target.files[0];
   if (!file) {
     loadedConfig = null;
-    updateExportState();
+    updateImportState();
     return;
   }
 
@@ -167,13 +168,13 @@ function handleConfigFile(event) {
   readConfigFile(file)
     .then((config) => {
       loadedConfig = config;
-      setStatus(exportStatus, "File caricato. Inserisci i GUID e scarica.");
-      updateExportState();
+      setStatus(importStatus, "config.json caricato. Carica il mapping.");
+      updateImportState();
     })
     .catch((error) => {
       loadedConfig = null;
-      setStatus(exportStatus, `Errore JSON: ${error.message}`, true);
-      updateExportState();
+      setStatus(importStatus, `Errore JSON: ${error.message}`, true);
+      updateImportState();
     });
 }
 
@@ -201,60 +202,94 @@ function handleMappingFile(event) {
   const file = event.target.files[0];
   if (!file) {
     loadedMapping = null;
+    updateImportState();
     return;
   }
 
-  setStatus(exportStatus, "Caricamento mapping...", false);
+  setStatus(importStatus, "Caricamento mapping...", false);
 
   readConfigFile(file)
     .then((mapping) => {
       loadedMapping = mapping;
       const didUpdate = applyMappingToFields(mapping);
       if (didUpdate) {
-        setStatus(exportStatus, "Mapping caricato. Campi precompilati.");
+        setStatus(importStatus, "Mapping caricato. Campi precompilati.");
       } else {
-        setStatus(exportStatus, "Mapping caricato ma nessun GUID trovato.", true);
+        setStatus(importStatus, "Mapping caricato ma nessun GUID trovato.", true);
       }
+      updateImportState();
     })
     .catch((error) => {
       loadedMapping = null;
-      setStatus(exportStatus, `Errore mapping: ${error.message}`, true);
+      setStatus(importStatus, `Errore mapping: ${error.message}`, true);
+      updateImportState();
     });
 }
 
-function handleExport() {
-  if (!loadedConfig) {
-    setStatus(exportStatus, "Carica prima un config.json.", true);
+function applyMappingToConfig(config, mapping) {
+  if (!mapping || !Array.isArray(mapping.services)) {
+    return;
+  }
+  mapping.services.forEach((service) => {
+    if (!service || typeof service !== "object") {
+      return;
+    }
+    if (typeof service.serviceType === "string" && typeof service.serviceGuid === "string") {
+      applyGuidToConfig(config, service.serviceType, service.serviceGuid);
+    }
+  });
+}
+
+async function handleImport() {
+  const baseUrl = normalizeBaseUrl(baseUrlInput.value);
+  if (!baseUrl) {
+    setStatus(importStatus, "Inserisci un base URL valido.", true);
     return;
   }
 
-  const configCopy = JSON.parse(JSON.stringify(loadedConfig));
-  Object.entries(guidFields).forEach(([serviceName, input]) => {
-    const guid = input.value.trim();
-    if (guid) {
-      applyGuidToConfig(configCopy, serviceName, guid);
+  if (!loadedConfig) {
+    setStatus(importStatus, "Carica prima un config.json.", true);
+    return;
+  }
+
+  if (!loadedMapping) {
+    setStatus(importStatus, "Carica prima un mapping.json.", true);
+    return;
+  }
+
+  importBtn.disabled = true;
+  setStatus(importStatus, "Invio import in corso...");
+
+  try {
+    const configCopy = JSON.parse(JSON.stringify(loadedConfig));
+    applyMappingToConfig(configCopy, loadedMapping);
+
+    const response = await fetch(`${baseUrl}/api/v2/import`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(configCopy),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
     }
-  });
 
-  const pretty = JSON.stringify(configCopy, null, 2);
-  const blob = new Blob([pretty], { type: "application/json" });
-  const downloadUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = downloadUrl;
-  link.download = loadedFilename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(downloadUrl);
-
-  setStatus(exportStatus, "Config aggiornato scaricato.");
+    setStatus(importStatus, "Import completato.");
+  } catch (error) {
+    setStatus(importStatus, `Errore import: ${error.message}`, true);
+  } finally {
+    updateImportState();
+  }
 }
 
 baseUrlInput.addEventListener("input", updateImportState);
-importBtn.addEventListener("click", handleImport);
+baseUrlInput.addEventListener("input", updateExportState);
+exportBtn.addEventListener("click", handleExport);
 configFileInput.addEventListener("change", handleConfigFile);
 mappingFileInput.addEventListener("change", handleMappingFile);
-exportBtn.addEventListener("click", handleExport);
+importBtn.addEventListener("click", handleImport);
 
 updateImportState();
 updateExportState();

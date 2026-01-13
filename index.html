@@ -25,13 +25,13 @@
       <section class="card">
         <h2>Export</h2>
         <p>Scarica l'export da <span class="mono">/api/v2/export</span> e salvalo dove vuoi.</p>
-        <button id="importBtn" class="primary" disabled>Scarica export</button>
-        <div class="status" id="importStatus"></div>
+        <button id="exportBtn" class="primary" disabled>Scarica export</button>
+        <div class="status" id="exportStatus"></div>
       </section>
 
       <section class="card">
         <h2>Import</h2>
-        <p>Carica un <span class="mono">config.json</span> e imposta i GUID dei servizi.</p>
+        <p>Carica un <span class="mono">config.json</span> e un <span class="mono">mapping.json</span> per inviare l'import.</p>
         <div class="field">
           <label for="configFile">config.json</label>
           <input id="configFile" type="file" accept="application/json" />
@@ -64,8 +64,8 @@
           </div>
         </div>
 
-        <button id="exportBtn" class="primary" disabled>Scarica config aggiornato</button>
-        <div class="status" id="exportStatus"></div>
+        <button id="importBtn" class="primary" disabled>Invia import</button>
+        <div class="status" id="importStatus"></div>
       </section>
     </main>
 
