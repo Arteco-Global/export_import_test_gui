@@ -17,9 +17,32 @@
         <h2>Base URL</h2>
         <div class="field">
           <label for="baseUrl">Base URL</label>
-          <input id="baseUrl" type="text" placeholder="https://example.com"value="https://V05250217.lan.omniaweb.cloud" />
+          <input id="baseUrl" type="text" placeholder="https://example.com" value="https://V05250217.lan.omniaweb.cloud" />
         </div>
-        <div class="hint" id="baseUrlHint">Serve per la chiamata GET a /api/v2/export.</div>
+        <div class="grid">
+          <div class="field">
+            <label for="username">Username</label>
+            <input id="username" type="text" placeholder="admin" />
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input id="password" type="password" placeholder="••••••" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="authServiceSelect">Auth service</label>
+          <select id="authServiceSelect" disabled>
+            <option value="">Carica gli auth service</option>
+          </select>
+        </div>
+        <div class="grid">
+          <button id="fetchAuthServicesBtn" class="primary" disabled>Carica auth service</button>
+          <button id="loginBtn" class="primary" disabled>Login</button>
+        </div>
+        <div class="status" id="loginStatus"></div>
+        <div class="hint" id="baseUrlHint">
+          Login obbligatorio: il token ottenuto viene usato per reset, mapping, import ed export.
+        </div>
         <button id="resetBtn" class="primary">Reset server</button>
         <div class="status" id="resetStatus"></div>
       </section>

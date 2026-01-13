@@ -1,4 +1,10 @@
 const baseUrlInput = document.getElementById("baseUrl");
+const usernameInput = document.getElementById("username");
+const passwordInput = document.getElementById("password");
+const authServiceSelect = document.getElementById("authServiceSelect");
+const fetchAuthServicesBtn = document.getElementById("fetchAuthServicesBtn");
+const loginBtn = document.getElementById("loginBtn");
+const loginStatus = document.getElementById("loginStatus");
 const importBtn = document.getElementById("importBtn");
 const importStatus = document.getElementById("importStatus");
 const configFileInput = document.getElementById("configFile");
@@ -15,6 +21,8 @@ let loadedFilename = "config.json";
 let loadedMappingOld = null;
 let loadedMappingNew = null;
 const associationSelections = new Map();
+let accessToken = "";
+let lastBaseUrl = "";
 
 function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "").trim();
@@ -27,13 +35,197 @@ function setStatus(el, message, isError = false) {
 
 function updateImportState() {
   const baseUrlReady = normalizeBaseUrl(baseUrlInput.value) !== "";
+  const authReady = accessToken !== "";
   const mappingsReady = loadedMappingOld && loadedMappingNew;
   const associationsReady = mappingsReady && areAssociationsComplete();
-  importBtn.disabled = !(baseUrlReady && loadedConfig && mappingsReady && associationsReady);
+  importBtn.disabled = !(baseUrlReady && authReady && loadedConfig && mappingsReady && associationsReady);
 }
 
 function updateExportState() {
-  exportBtn.disabled = false;
+  const baseUrlReady = normalizeBaseUrl(baseUrlInput.value) !== "";
+  const authReady = accessToken !== "";
+  exportBtn.disabled = !(baseUrlReady && authReady);
+}
+
+function updateAuthState() {
+  const baseUrlReady = normalizeBaseUrl(baseUrlInput.value) !== "";
+  const credsReady = usernameInput.value.trim() !== "" && passwordInput.value !== "";
+  const authServiceReady = authServiceSelect.value !== "";
+  const tokenReady = accessToken !== "";
+
+  fetchAuthServicesBtn.disabled = !baseUrlReady;
+  authServiceSelect.disabled = authServices.length === 0;
+  loginBtn.disabled = !(baseUrlReady && credsReady && authServiceReady);
+  resetBtn.disabled = !(baseUrlReady && tokenReady);
+  fetchMappingBtn.disabled = !(baseUrlReady && tokenReady);
+
+  updateImportState();
+  updateExportState();
+}
+
+function resetAuthServices(message) {
+  authServices = [];
+  authServiceSelect.innerHTML = "";
+  const option = document.createElement("option");
+  option.value = "";
+  option.textContent = message || "Carica gli auth service";
+  authServiceSelect.appendChild(option);
+  updateAuthState();
+}
+
+function resetAccessToken(message) {
+  accessToken = "";
+  if (message) {
+    setStatus(loginStatus, message, false);
+  }
+  updateAuthState();
+}
+
+function normalizeAuthServices(payload) {
+  const list =
+    (Array.isArray(payload) && payload) ||
+    payload?.authServices ||
+    payload?.data ||
+    payload?.root?.authServices ||
+    [];
+
+  if (!Array.isArray(list)) {
+    return [];
+  }
+
+  return list
+    .map((item) => ({
+      guid:
+        item?.id ||
+        item?.guid ||
+        item?.authServiceGuid ||
+        item?.serviceGuid ||
+        "",
+      name:
+        item?.name ||
+        item?.authServiceName ||
+        item?.serviceName ||
+        item?.descr ||
+        "",
+    }))
+    .filter((item) => typeof item.guid === "string" && item.guid.trim() !== "");
+}
+
+function renderAuthServices(services) {
+  authServiceSelect.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Seleziona auth service";
+  authServiceSelect.appendChild(placeholder);
+
+  services.forEach((service) => {
+    const option = document.createElement("option");
+    option.value = service.guid;
+    option.textContent = service.name ? `${service.guid} - ${service.name}` : service.guid;
+    authServiceSelect.appendChild(option);
+  });
+}
+
+async function handleFetchAuthServices() {
+  const baseUrl = normalizeBaseUrl(baseUrlInput.value);
+
+  if (!baseUrl) {
+    setStatus(loginStatus, "Inserisci un base URL valido.", true);
+    return;
+  }
+
+  fetchAuthServicesBtn.disabled = true;
+  setStatus(loginStatus, "Caricamento auth service...", false);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/v2/server/auth-services`, {
+      method: "GET",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    const services = normalizeAuthServices(payload);
+
+    if (services.length === 0) {
+      resetAuthServices("Nessun auth service trovato");
+      setStatus(loginStatus, "Nessun auth service disponibile.", true);
+      return;
+    }
+
+    authServices = services;
+    renderAuthServices(services);
+    setStatus(loginStatus, "Auth service caricati. Seleziona e fai login.");
+  } catch (error) {
+    resetAuthServices("Carica gli auth service");
+    setStatus(loginStatus, `Errore auth service: ${error.message}`, true);
+  } finally {
+    updateAuthState();
+  }
+}
+
+async function handleLogin() {
+  const baseUrl = normalizeBaseUrl(baseUrlInput.value);
+  const username = usernameInput.value.trim();
+  const password = passwordInput.value;
+  const authGuid = authServiceSelect.value;
+
+  if (!baseUrl) {
+    setStatus(loginStatus, "Inserisci un base URL valido.", true);
+    return;
+  }
+
+  if (!username || !password) {
+    setStatus(loginStatus, "Inserisci username e password.", true);
+    return;
+  }
+
+  if (!authGuid) {
+    setStatus(loginStatus, "Seleziona un auth service.", true);
+    return;
+  }
+
+  loginBtn.disabled = true;
+  setStatus(loginStatus, "Login in corso...", false);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/v2/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username,
+        password,
+        authServiceGuid: authGuid,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+
+    const payload = await response.json().catch(() => null);
+    const token =
+      payload?.root?.access_token ||
+      payload?.access_token ||
+      payload?.root?.accessToken ||
+      "";
+
+    if (!token) {
+      throw new Error("Access token non trovato.");
+    }
+
+    accessToken = token;
+    setStatus(loginStatus, "Login OK.");
+  } catch (error) {
+    accessToken = "";
+    setStatus(loginStatus, `Errore login: ${error.message}`, true);
+  } finally {
+    updateAuthState();
+  }
 }
 
 async function handleExport() {
@@ -43,12 +235,20 @@ async function handleExport() {
     return;
   }
 
+  if (!accessToken) {
+    setStatus(exportStatus, "Fai login prima di esportare.", true);
+    return;
+  }
+
   exportBtn.disabled = true;
   setStatus(exportStatus, "Download in corso...");
 
   try {
     const response = await fetch(`${baseUrl}/api/v2/export`, {
       method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
 
     if (!response.ok) {
@@ -80,6 +280,11 @@ async function handleReset() {
     return;
   }
 
+  if (!accessToken) {
+    setStatus(resetStatus, "Fai login prima di resettare.", true);
+    return;
+  }
+
   const confirmed = window.confirm("Sei sicuro di voler resettare il server?");
   if (!confirmed) {
     setStatus(resetStatus, "Reset annullato.");
@@ -92,6 +297,9 @@ async function handleReset() {
   try {
     const response = await fetch(`${baseUrl}/api/v2/reset`, {
       method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
 
     if (!response.ok) {
@@ -102,7 +310,7 @@ async function handleReset() {
   } catch (error) {
     setStatus(resetStatus, `Errore reset: ${error.message}`, true);
   } finally {
-    resetBtn.disabled = false;
+    updateAuthState();
   }
 }
 
@@ -396,12 +604,20 @@ async function handleFetchMapping() {
     return;
   }
 
+  if (!accessToken) {
+    setStatus(importStatus, "Fai login prima di ottenere il mapping.", true);
+    return;
+  }
+
   fetchMappingBtn.disabled = true;
   setStatus(importStatus, "Richiesta mapping attuale...", false);
 
   try {
     const response = await fetch(`${baseUrl}/api/v2/mapping`, {
       method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
 
     if (!response.ok) {
@@ -425,7 +641,7 @@ async function handleFetchMapping() {
     setStatus(importStatus, `Errore mapping nuovo: ${error.message}`, true);
     updateImportState();
   } finally {
-    fetchMappingBtn.disabled = false;
+    updateAuthState();
   }
 }
 
@@ -510,6 +726,11 @@ async function handleImport() {
     return;
   }
 
+  if (!accessToken) {
+    setStatus(importStatus, "Fai login prima di importare.", true);
+    return;
+  }
+
   if (!loadedConfig) {
     setStatus(importStatus, "Carica prima un config.json.", true);
     return;
@@ -537,6 +758,7 @@ async function handleImport() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify(configCopy),
     });
@@ -560,8 +782,29 @@ async function handleImport() {
   }
 }
 
-baseUrlInput.addEventListener("input", updateImportState);
-baseUrlInput.addEventListener("input", updateExportState);
+let authServices = [];
+
+function handleBaseUrlChange() {
+  const baseUrl = normalizeBaseUrl(baseUrlInput.value);
+  if (baseUrl !== lastBaseUrl) {
+    lastBaseUrl = baseUrl;
+    resetAccessToken("Login da rifare: base URL cambiato.");
+    resetAuthServices("Carica gli auth service");
+  }
+  updateAuthState();
+}
+
+function handleCredentialChange() {
+  resetAccessToken("Login da rifare: credenziali cambiate.");
+  updateAuthState();
+}
+
+baseUrlInput.addEventListener("input", handleBaseUrlChange);
+usernameInput.addEventListener("input", handleCredentialChange);
+passwordInput.addEventListener("input", handleCredentialChange);
+authServiceSelect.addEventListener("change", updateAuthState);
+fetchAuthServicesBtn.addEventListener("click", handleFetchAuthServices);
+loginBtn.addEventListener("click", handleLogin);
 exportBtn.addEventListener("click", handleExport);
 resetBtn.addEventListener("click", handleReset);
 configFileInput.addEventListener("change", handleConfigFile);
@@ -569,6 +812,7 @@ mappingOldFileInput.addEventListener("change", handleMappingOldFile);
 fetchMappingBtn.addEventListener("click", handleFetchMapping);
 importBtn.addEventListener("click", handleImport);
 
-updateImportState();
-updateExportState();
+resetAuthServices("Carica gli auth service");
+resetAccessToken();
+updateAuthState();
 clearAssociationList("Carica il mapping vecchio e ottieni quello nuovo.");
