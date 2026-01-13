@@ -2,6 +2,7 @@ const baseUrlInput = document.getElementById("baseUrl");
 const importBtn = document.getElementById("importBtn");
 const importStatus = document.getElementById("importStatus");
 const configFileInput = document.getElementById("configFile");
+const mappingFileInput = document.getElementById("mappingFile");
 const exportBtn = document.getElementById("exportBtn");
 const exportStatus = document.getElementById("exportStatus");
 
@@ -15,6 +16,7 @@ const guidFields = {
 
 let loadedConfig = null;
 let loadedFilename = "config.json";
+let loadedMapping = null;
 
 function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "").trim();
@@ -175,6 +177,51 @@ function handleConfigFile(event) {
     });
 }
 
+function applyMappingToFields(mapping) {
+  if (!mapping || !Array.isArray(mapping.services)) {
+    return false;
+  }
+
+  let updated = false;
+  mapping.services.forEach((service) => {
+    if (!service || typeof service !== "object") {
+      return;
+    }
+    const field = guidFields[service.serviceType];
+    if (field && typeof service.serviceGuid === "string") {
+      field.value = service.serviceGuid;
+      updated = true;
+    }
+  });
+
+  return updated;
+}
+
+function handleMappingFile(event) {
+  const file = event.target.files[0];
+  if (!file) {
+    loadedMapping = null;
+    return;
+  }
+
+  setStatus(exportStatus, "Caricamento mapping...", false);
+
+  readConfigFile(file)
+    .then((mapping) => {
+      loadedMapping = mapping;
+      const didUpdate = applyMappingToFields(mapping);
+      if (didUpdate) {
+        setStatus(exportStatus, "Mapping caricato. Campi precompilati.");
+      } else {
+        setStatus(exportStatus, "Mapping caricato ma nessun GUID trovato.", true);
+      }
+    })
+    .catch((error) => {
+      loadedMapping = null;
+      setStatus(exportStatus, `Errore mapping: ${error.message}`, true);
+    });
+}
+
 function handleExport() {
   if (!loadedConfig) {
     setStatus(exportStatus, "Carica prima un config.json.", true);
@@ -206,6 +253,7 @@ function handleExport() {
 baseUrlInput.addEventListener("input", updateImportState);
 importBtn.addEventListener("click", handleImport);
 configFileInput.addEventListener("change", handleConfigFile);
+mappingFileInput.addEventListener("change", handleMappingFile);
 exportBtn.addEventListener("click", handleExport);
 
 updateImportState();

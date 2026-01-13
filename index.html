@@ -17,24 +17,28 @@
         <h2>Base URL</h2>
         <div class="field">
           <label for="baseUrl">Base URL</label>
-          <input id="baseUrl" type="text" placeholder="https://example.com" />
+          <input id="baseUrl" type="text" placeholder="https://example.com"value="https://V05250217.lan.omniaweb.cloud" />
         </div>
         <div class="hint" id="baseUrlHint">Serve per la chiamata GET a /api/v2/export.</div>
       </section>
 
       <section class="card">
-        <h2>Import</h2>
+        <h2>Export</h2>
         <p>Scarica l'export da <span class="mono">/api/v2/export</span> e salvalo dove vuoi.</p>
         <button id="importBtn" class="primary" disabled>Scarica export</button>
         <div class="status" id="importStatus"></div>
       </section>
 
       <section class="card">
-        <h2>Export</h2>
+        <h2>Import</h2>
         <p>Carica un <span class="mono">config.json</span> e imposta i GUID dei servizi.</p>
         <div class="field">
           <label for="configFile">config.json</label>
           <input id="configFile" type="file" accept="application/json" />
+        </div>
+        <div class="field">
+          <label for="mappingFile">mapping.json (nuovo server)</label>
+          <input id="mappingFile" type="file" accept="application/json" />
         </div>
 
         <div class="grid" id="guidFields">
