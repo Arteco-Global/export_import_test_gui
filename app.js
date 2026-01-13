@@ -25,7 +25,7 @@ function normalizeBaseUrl(value) {
 }
 
 function setStatus(el, message, isError = false) {
-  el.textContent = message;
+  el.innerHTML = message;
   el.style.color = isError ? "#8b2f2f" : "";
 }
 
@@ -598,6 +598,59 @@ function applyGuidMapToConfig(config, guidMap) {
   visit(config);
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatImportErrors(payload) {
+  const parts = [];
+  if (payload.message) {
+    parts.push(`<div>${escapeHtml(payload.message)}</div>`);
+  }
+
+  const data = payload.data || {};
+
+  if (Array.isArray(data.associationResults) && data.associationResults.length > 0) {
+    const rows = data.associationResults
+      .map(
+        (item) =>
+          `<li>${escapeHtml(item.type || "associazione")}: ${escapeHtml(
+            item.message || "errore"
+          )}</li>`
+      )
+      .join("");
+    parts.push(`<div>Associazioni:</div><ul>${rows}</ul>`);
+  }
+
+  if (Array.isArray(data.userResults) && data.userResults.length > 0) {
+    const rows = data.userResults
+      .map(
+        (item) =>
+          `<li>Utente: ${escapeHtml(item.message || "errore")} (${escapeHtml(
+            item.serviceGuid || "N/D"
+          )})</li>`
+      )
+      .join("");
+    parts.push(`<div>Utenti:</div><ul>${rows}</ul>`);
+  }
+
+  if (Array.isArray(data.errors) && data.errors.length > 0) {
+    const rows = data.errors.map((err) => `<li>${escapeHtml(err)}</li>`).join("");
+    parts.push(`<div>Errori:</div><ul>${rows}</ul>`);
+  }
+
+  if (parts.length === 0) {
+    return "Import fallito.";
+  }
+
+  return parts.join("");
+}
+
 async function handleImport() {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (!baseUrl) {
@@ -643,8 +696,8 @@ async function handleImport() {
     const payload = await response.json().catch(() => null);
     if (payload && payload.success === true) {
       setStatus(importStatus, "OK");
-    } else if (payload && typeof payload.message === "string") {
-      setStatus(importStatus, payload.message, true);
+    } else if (payload) {
+      setStatus(importStatus, formatImportErrors(payload), true);
     } else {
       setStatus(importStatus, "Import fallito.", true);
     }
