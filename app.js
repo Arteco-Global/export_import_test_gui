@@ -6,10 +6,6 @@ const mappingOldFileInput = document.getElementById("mappingOldFile");
 const fetchMappingBtn = document.getElementById("fetchMappingBtn");
 const resetBtn = document.getElementById("resetBtn");
 const resetStatus = document.getElementById("resetStatus");
-const previewConfigFileInput = document.getElementById("previewConfigFile");
-const previewMappingFileInput = document.getElementById("previewMappingFile");
-const previewList = document.getElementById("previewList");
-const previewStatus = document.getElementById("previewStatus");
 const exportBtn = document.getElementById("exportBtn");
 const exportStatus = document.getElementById("exportStatus");
 const associationList = document.getElementById("associationList");
@@ -18,8 +14,6 @@ let loadedConfig = null;
 let loadedFilename = "config.json";
 let loadedMappingOld = null;
 let loadedMappingNew = null;
-let previewConfig = null;
-let previewMapping = null;
 const associationSelections = new Map();
 
 function normalizeBaseUrl(value) {
@@ -226,14 +220,6 @@ function clearAssociationList(message) {
   associationList.appendChild(placeholder);
 }
 
-function clearPreviewList(message) {
-  previewList.innerHTML = "";
-  const placeholder = document.createElement("div");
-  placeholder.className = "placeholder";
-  placeholder.textContent = message;
-  previewList.appendChild(placeholder);
-}
-
 function buildMappingLookup(mapping) {
   const lookup = new Map();
   if (!mapping || !Array.isArray(mapping.services)) {
@@ -265,138 +251,6 @@ function describeServiceGuid(serviceGuid, lookup, fallbackType = "") {
   }
   const name = info.serviceName ? ` (${info.serviceName})` : "";
   return `${serviceGuid}${name}`;
-}
-
-function renderPreview() {
-  if (!previewConfig || !previewMapping) {
-    clearPreviewList("Carica entrambi i file per vedere l'anteprima.");
-    return;
-  }
-
-  const cameraServices = Array.isArray(previewConfig.cameraServices)
-    ? previewConfig.cameraServices
-    : [];
-  const userServices = Array.isArray(previewConfig.users) ? previewConfig.users : [];
-  const lookup = buildMappingLookup(previewMapping);
-
-  previewList.innerHTML = "";
-
-  if (cameraServices.length === 0 && userServices.length === 0) {
-    clearPreviewList("Nessuna telecamera o utente trovato nel config.");
-    return;
-  }
-
-  if (cameraServices.length > 0) {
-    const cameraTitle = document.createElement("div");
-    cameraTitle.className = "preview-section-title";
-    cameraTitle.textContent = "CAMERE:";
-    previewList.appendChild(cameraTitle);
-  }
-
-  cameraServices.forEach((serviceBlock) => {
-    const cameras = Array.isArray(serviceBlock.cameras) ? serviceBlock.cameras : [];
-    cameras.forEach((cameraEntry) => {
-      const camera = cameraEntry.camera || {};
-      const card = document.createElement("details");
-      card.className = "preview-card";
-
-      const summary = document.createElement("summary");
-      const title = document.createElement("div");
-      title.textContent = camera.descr || camera.hostname || camera._id || "Camera";
-      const idLine = document.createElement("div");
-      idLine.className = "preview-id";
-      idLine.textContent = camera._id ? `ID: ${camera._id}` : "ID: N/D";
-      summary.appendChild(title);
-      summary.appendChild(idLine);
-      card.appendChild(summary);
-
-      const services = document.createElement("div");
-      services.className = "preview-services";
-
-      const cameraService = document.createElement("div");
-      cameraService.textContent = `Camera service -> ${describeServiceGuid(
-        serviceBlock.serviceGuid,
-        lookup,
-        serviceBlock.serviceType
-      )}`;
-      services.appendChild(cameraService);
-
-      const associations = cameraEntry.associations || {};
-      const associationTypes = [
-        { key: "snapshot", label: "Snapshot" },
-        { key: "recording", label: "Recording" },
-        { key: "events", label: "Eventi" },
-      ];
-
-      associationTypes.forEach(({ key, label }) => {
-        const items = Array.isArray(associations[key]) ? associations[key] : [];
-        if (items.length === 0) {
-          const row = document.createElement("div");
-          row.textContent = `${label} -> nessuna`;
-          services.appendChild(row);
-          return;
-        }
-
-        items.forEach((item) => {
-          const row = document.createElement("div");
-          row.textContent = `${label} -> ${describeServiceGuid(
-            item.serviceGuid,
-            lookup,
-            item.serviceType
-          )}`;
-          services.appendChild(row);
-        });
-      });
-
-      card.appendChild(services);
-      previewList.appendChild(card);
-    });
-  });
-
-  if (userServices.length > 0) {
-    const userTitle = document.createElement("div");
-    userTitle.className = "preview-section-title";
-    userTitle.textContent = "UTENTI:";
-    previewList.appendChild(userTitle);
-  }
-
-  userServices.forEach((userBlock) => {
-    const users = Array.isArray(userBlock.users) ? userBlock.users : [];
-    users.forEach((user) => {
-      const card = document.createElement("details");
-      card.className = "preview-card";
-
-      const summary = document.createElement("summary");
-      const title = document.createElement("div");
-      title.textContent = user.name || user.username || user._id || "Utente";
-      const idLine = document.createElement("div");
-      idLine.className = "preview-id";
-      idLine.textContent = user._id ? `ID: ${user._id}` : "ID: N/D";
-      summary.appendChild(title);
-      summary.appendChild(idLine);
-      card.appendChild(summary);
-
-      const services = document.createElement("div");
-      services.className = "preview-services";
-      const authService = document.createElement("div");
-      authService.textContent = `Auth service -> ${describeServiceGuid(
-        userBlock.serviceGuid,
-        lookup,
-        userBlock.serviceType
-      )}`;
-      services.appendChild(authService);
-
-      const meta = document.createElement("div");
-      meta.className = "preview-meta";
-      const username = user.username ? `Username: ${user.username}` : "Username: N/D";
-      const email = user.email ? `Email: ${user.email}` : "Email: N/D";
-      meta.textContent = `${username} | ${email}`;
-      services.appendChild(meta);
-
-      card.appendChild(services);
-      previewList.appendChild(card);
-    });
-  });
 }
 
 function buildAssociationUI(oldServices, newServices) {
@@ -575,50 +429,6 @@ async function handleFetchMapping() {
   }
 }
 
-function handlePreviewConfigFile(event) {
-  const file = event.target.files[0];
-  if (!file) {
-    previewConfig = null;
-    renderPreview();
-    return;
-  }
-
-  setStatus(previewStatus, "Caricamento config...", false);
-  readConfigFile(file)
-    .then((config) => {
-      previewConfig = config;
-      setStatus(previewStatus, "config.json caricato.");
-      renderPreview();
-    })
-    .catch((error) => {
-      previewConfig = null;
-      setStatus(previewStatus, `Errore config: ${error.message}`, true);
-      renderPreview();
-    });
-}
-
-function handlePreviewMappingFile(event) {
-  const file = event.target.files[0];
-  if (!file) {
-    previewMapping = null;
-    renderPreview();
-    return;
-  }
-
-  setStatus(previewStatus, "Caricamento mapping...", false);
-  readConfigFile(file)
-    .then((mapping) => {
-      previewMapping = mapping;
-      setStatus(previewStatus, "mapping.json caricato.");
-      renderPreview();
-    })
-    .catch((error) => {
-      previewMapping = null;
-      setStatus(previewStatus, `Errore mapping: ${error.message}`, true);
-      renderPreview();
-    });
-}
-
 function applyGuidMapToConfig(config, guidMap) {
   function visit(node) {
     if (!node || typeof node !== "object") {
@@ -757,11 +567,8 @@ resetBtn.addEventListener("click", handleReset);
 configFileInput.addEventListener("change", handleConfigFile);
 mappingOldFileInput.addEventListener("change", handleMappingOldFile);
 fetchMappingBtn.addEventListener("click", handleFetchMapping);
-previewConfigFileInput.addEventListener("change", handlePreviewConfigFile);
-previewMappingFileInput.addEventListener("change", handlePreviewMappingFile);
 importBtn.addEventListener("click", handleImport);
 
 updateImportState();
 updateExportState();
 clearAssociationList("Carica il mapping vecchio e ottieni quello nuovo.");
-clearPreviewList("Carica entrambi i file per vedere l'anteprima.");
