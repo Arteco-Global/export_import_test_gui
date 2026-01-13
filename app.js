@@ -33,7 +33,7 @@ function updateImportState() {
 }
 
 function updateExportState() {
-  exportBtn.disabled = normalizeBaseUrl(baseUrlInput.value) === "";
+  exportBtn.disabled = false;
 }
 
 async function handleExport() {
@@ -276,7 +276,14 @@ async function handleImport() {
       throw new Error(`Errore HTTP ${response.status}`);
     }
 
-    setStatus(importStatus, "Import completato.");
+    const payload = await response.json().catch(() => null);
+    if (payload && payload.success === true) {
+      setStatus(importStatus, "OK");
+    } else if (payload && typeof payload.message === "string") {
+      setStatus(importStatus, payload.message, true);
+    } else {
+      setStatus(importStatus, "Import fallito.", true);
+    }
   } catch (error) {
     setStatus(importStatus, `Errore import: ${error.message}`, true);
   } finally {
