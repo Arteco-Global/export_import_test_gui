@@ -226,10 +226,10 @@ function describeServiceGuid(serviceGuid, lookup, fallbackType = "") {
   }
   const info = lookup.get(serviceGuid);
   if (!info) {
-    return fallbackType ? `${fallbackType} - ${serviceGuid}` : serviceGuid;
+    return serviceGuid;
   }
   const name = info.serviceName ? ` (${info.serviceName})` : "";
-  return `${info.serviceType}${name} - ${serviceGuid}`;
+  return `${serviceGuid}${name}`;
 }
 
 function renderPreview() {
@@ -241,36 +241,45 @@ function renderPreview() {
   const cameraServices = Array.isArray(previewConfig.cameraServices)
     ? previewConfig.cameraServices
     : [];
+  const userServices = Array.isArray(previewConfig.users) ? previewConfig.users : [];
   const lookup = buildMappingLookup(previewMapping);
 
   previewList.innerHTML = "";
 
-  if (cameraServices.length === 0) {
-    clearPreviewList("Nessuna telecamera trovata nel config.");
+  if (cameraServices.length === 0 && userServices.length === 0) {
+    clearPreviewList("Nessuna telecamera o utente trovato nel config.");
     return;
+  }
+
+  if (cameraServices.length > 0) {
+    const cameraTitle = document.createElement("div");
+    cameraTitle.className = "preview-section-title";
+    cameraTitle.textContent = "CAMERE:";
+    previewList.appendChild(cameraTitle);
   }
 
   cameraServices.forEach((serviceBlock) => {
     const cameras = Array.isArray(serviceBlock.cameras) ? serviceBlock.cameras : [];
     cameras.forEach((cameraEntry) => {
       const camera = cameraEntry.camera || {};
-      const card = document.createElement("div");
+      const card = document.createElement("details");
       card.className = "preview-card";
 
-      const title = document.createElement("h4");
+      const summary = document.createElement("summary");
+      const title = document.createElement("div");
       title.textContent = camera.descr || camera.hostname || camera._id || "Camera";
-      card.appendChild(title);
-
-      const meta = document.createElement("div");
-      meta.className = "preview-meta";
-      meta.textContent = camera._id ? `ID: ${camera._id}` : "ID: N/D";
-      card.appendChild(meta);
+      const idLine = document.createElement("div");
+      idLine.className = "preview-id";
+      idLine.textContent = camera._id ? `ID: ${camera._id}` : "ID: N/D";
+      summary.appendChild(title);
+      summary.appendChild(idLine);
+      card.appendChild(summary);
 
       const services = document.createElement("div");
       services.className = "preview-services";
 
       const cameraService = document.createElement("div");
-      cameraService.textContent = `Camera service: ${describeServiceGuid(
+      cameraService.textContent = `Camera service -> ${describeServiceGuid(
         serviceBlock.serviceGuid,
         lookup,
         serviceBlock.serviceType
@@ -288,14 +297,14 @@ function renderPreview() {
         const items = Array.isArray(associations[key]) ? associations[key] : [];
         if (items.length === 0) {
           const row = document.createElement("div");
-          row.textContent = `${label}: nessuna`;
+          row.textContent = `${label} -> nessuna`;
           services.appendChild(row);
           return;
         }
 
         items.forEach((item) => {
           const row = document.createElement("div");
-          row.textContent = `${label}: ${describeServiceGuid(
+          row.textContent = `${label} -> ${describeServiceGuid(
             item.serviceGuid,
             lookup,
             item.serviceType
@@ -303,6 +312,51 @@ function renderPreview() {
           services.appendChild(row);
         });
       });
+
+      card.appendChild(services);
+      previewList.appendChild(card);
+    });
+  });
+
+  if (userServices.length > 0) {
+    const userTitle = document.createElement("div");
+    userTitle.className = "preview-section-title";
+    userTitle.textContent = "UTENTI:";
+    previewList.appendChild(userTitle);
+  }
+
+  userServices.forEach((userBlock) => {
+    const users = Array.isArray(userBlock.users) ? userBlock.users : [];
+    users.forEach((user) => {
+      const card = document.createElement("details");
+      card.className = "preview-card";
+
+      const summary = document.createElement("summary");
+      const title = document.createElement("div");
+      title.textContent = user.name || user.username || user._id || "Utente";
+      const idLine = document.createElement("div");
+      idLine.className = "preview-id";
+      idLine.textContent = user._id ? `ID: ${user._id}` : "ID: N/D";
+      summary.appendChild(title);
+      summary.appendChild(idLine);
+      card.appendChild(summary);
+
+      const services = document.createElement("div");
+      services.className = "preview-services";
+      const authService = document.createElement("div");
+      authService.textContent = `Auth service -> ${describeServiceGuid(
+        userBlock.serviceGuid,
+        lookup,
+        userBlock.serviceType
+      )}`;
+      services.appendChild(authService);
+
+      const meta = document.createElement("div");
+      meta.className = "preview-meta";
+      const username = user.username ? `Username: ${user.username}` : "Username: N/D";
+      const email = user.email ? `Email: ${user.email}` : "Email: N/D";
+      meta.textContent = `${username} | ${email}`;
+      services.appendChild(meta);
 
       card.appendChild(services);
       previewList.appendChild(card);

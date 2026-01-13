@@ -144,11 +144,6 @@ button.primary:not(:disabled):hover {
   gap: 8px;
 }
 
-.preview-card h4 {
-  margin: 0;
-  font-size: 16px;
-}
-
 .preview-meta {
   font-size: 13px;
   color: var(--muted);
@@ -163,6 +158,40 @@ button.primary:not(:disabled):hover {
 .preview-services span {
   display: inline-block;
   margin-right: 6px;
+}
+
+.preview-section-title {
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.preview-card summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.preview-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.preview-card summary::after {
+  content: "+";
+  justify-self: end;
+  font-weight: 700;
+}
+
+.preview-card[open] summary::after {
+  content: "-";
+}
+
+.preview-id {
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .association-row {
