@@ -156,6 +156,7 @@ function extractServices(mapping) {
   if (!mapping || !Array.isArray(mapping.services)) {
     return [];
   }
+  const ignoredTypes = new Set(["HypernodeGatewayService", "HypernodeCoreTrustService"]);
   return mapping.services
     .filter((service) => service && typeof service === "object")
     .map((service) => ({
@@ -165,7 +166,9 @@ function extractServices(mapping) {
     }))
     .filter(
       (service) =>
-        typeof service.serviceGuid === "string" && typeof service.serviceType === "string"
+        typeof service.serviceGuid === "string" &&
+        typeof service.serviceType === "string" &&
+        !ignoredTypes.has(service.serviceType)
     );
 }
 
