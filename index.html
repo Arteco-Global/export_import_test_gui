@@ -50,7 +50,7 @@
 
       <section class="card">
         <h2>Import</h2>
-        <p>Carica il <span class="mono">config.json</span>, il mapping del vecchio server e il mapping del nuovo server.</p>
+        <p>Carica il <span class="mono">config.json</span> e il mapping del vecchio server. Il mapping nuovo si ottiene dal server.</p>
         <div class="field">
           <label for="configFile">config.json (vecchio server)</label>
           <input id="configFile" type="file" accept="application/json" />
@@ -60,10 +60,7 @@
           <input id="mappingOldFile" type="file" accept="application/json" />
         </div>
 
-        <div class="field">
-          <label for="mappingNewFile">mapping.json (nuovo server)</label>
-          <input id="mappingNewFile" type="file" accept="application/json" />
-        </div>
+        <button id="fetchMappingBtn" class="primary">Ottieni mapping attuale</button>
 
         <div class="associations">
           <h3>Associazioni servizi</h3>

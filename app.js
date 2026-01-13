@@ -3,7 +3,7 @@ const importBtn = document.getElementById("importBtn");
 const importStatus = document.getElementById("importStatus");
 const configFileInput = document.getElementById("configFile");
 const mappingOldFileInput = document.getElementById("mappingOldFile");
-const mappingNewFileInput = document.getElementById("mappingNewFile");
+const fetchMappingBtn = document.getElementById("fetchMappingBtn");
 const previewConfigFileInput = document.getElementById("previewConfigFile");
 const previewMappingFileInput = document.getElementById("previewMappingFile");
 const previewList = document.getElementById("previewList");
@@ -472,7 +472,7 @@ function handleMappingOldFile(event) {
   if (!file) {
     loadedMappingOld = null;
     associationSelections.clear();
-    clearAssociationList("Carica entrambi i mapping per vedere le associazioni.");
+    clearAssociationList("Carica il mapping vecchio e ottieni quello nuovo.");
     updateImportState();
     return;
   }
@@ -487,50 +487,57 @@ function handleMappingOldFile(event) {
       if (loadedMappingNew) {
         buildAssociationUI(oldServices, newServices);
       } else {
-        clearAssociationList("Carica anche il mapping nuovo.");
+        clearAssociationList("Ottieni il mapping nuovo dal server.");
       }
       setStatus(importStatus, "Mapping vecchio caricato.");
       updateImportState();
     })
     .catch((error) => {
       loadedMappingOld = null;
-      clearAssociationList("Carica entrambi i mapping per vedere le associazioni.");
+      clearAssociationList("Carica il mapping vecchio e ottieni quello nuovo.");
       setStatus(importStatus, `Errore mapping vecchio: ${error.message}`, true);
       updateImportState();
     });
 }
 
-function handleMappingNewFile(event) {
-  const file = event.target.files[0];
-  if (!file) {
-    loadedMappingNew = null;
-    associationSelections.clear();
-    clearAssociationList("Carica entrambi i mapping per vedere le associazioni.");
-    updateImportState();
+async function handleFetchMapping() {
+  const baseUrl = normalizeBaseUrl(baseUrlInput.value);
+  if (!baseUrl) {
+    setStatus(importStatus, "Inserisci un base URL valido.", true);
     return;
   }
 
-  setStatus(importStatus, "Caricamento mapping nuovo...", false);
+  fetchMappingBtn.disabled = true;
+  setStatus(importStatus, "Richiesta mapping attuale...", false);
 
-  readConfigFile(file)
-    .then((mappingNew) => {
-      loadedMappingNew = mappingNew;
-      const oldServices = extractServices(loadedMappingOld);
-      const newServices = extractServices(mappingNew);
-      if (loadedMappingOld) {
-        buildAssociationUI(oldServices, newServices);
-      } else {
-        clearAssociationList("Carica anche il mapping vecchio.");
-      }
-      setStatus(importStatus, "Mapping nuovo caricato.");
-      updateImportState();
-    })
-    .catch((error) => {
-      loadedMappingNew = null;
-      clearAssociationList("Carica entrambi i mapping per vedere le associazioni.");
-      setStatus(importStatus, `Errore mapping nuovo: ${error.message}`, true);
-      updateImportState();
+  try {
+    const response = await fetch(`${baseUrl}/api/v2/mapping`, {
+      method: "GET",
     });
+
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+
+    const mappingNew = await response.json();
+    loadedMappingNew = mappingNew;
+    const oldServices = extractServices(loadedMappingOld);
+    const newServices = extractServices(mappingNew);
+    if (loadedMappingOld) {
+      buildAssociationUI(oldServices, newServices);
+    } else {
+      clearAssociationList("Carica anche il mapping vecchio.");
+    }
+    setStatus(importStatus, "Mapping nuovo ottenuto.");
+    updateImportState();
+  } catch (error) {
+    loadedMappingNew = null;
+    clearAssociationList("Carica il mapping vecchio e ottieni quello nuovo.");
+    setStatus(importStatus, `Errore mapping nuovo: ${error.message}`, true);
+    updateImportState();
+  } finally {
+    fetchMappingBtn.disabled = false;
+  }
 }
 
 function handlePreviewConfigFile(event) {
@@ -664,7 +671,7 @@ async function handleImport() {
   }
 
   if (!loadedMappingOld || !loadedMappingNew) {
-    setStatus(importStatus, "Carica i mapping del vecchio e nuovo server.", true);
+    setStatus(importStatus, "Carica il mapping vecchio e ottieni quello nuovo.", true);
     return;
   }
 
@@ -713,12 +720,12 @@ baseUrlInput.addEventListener("input", updateExportState);
 exportBtn.addEventListener("click", handleExport);
 configFileInput.addEventListener("change", handleConfigFile);
 mappingOldFileInput.addEventListener("change", handleMappingOldFile);
-mappingNewFileInput.addEventListener("change", handleMappingNewFile);
+fetchMappingBtn.addEventListener("click", handleFetchMapping);
 previewConfigFileInput.addEventListener("change", handlePreviewConfigFile);
 previewMappingFileInput.addEventListener("change", handlePreviewMappingFile);
 importBtn.addEventListener("click", handleImport);
 
 updateImportState();
 updateExportState();
-clearAssociationList("Carica entrambi i mapping per vedere le associazioni.");
+clearAssociationList("Carica il mapping vecchio e ottieni quello nuovo.");
 clearPreviewList("Carica entrambi i file per vedere l'anteprima.");
