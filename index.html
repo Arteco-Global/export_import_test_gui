@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import / Export GUI</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <h1>Import / Export</h1>
+        <p>GUI minimale per scaricare l'export o aggiornare un config.json.</p>
+      </header>
+
+      <section class="card">
+        <h2>Base URL</h2>
+        <div class="field">
+          <label for="baseUrl">Base URL</label>
+          <input id="baseUrl" type="text" placeholder="https://example.com" />
+        </div>
+        <div class="hint" id="baseUrlHint">Serve per la chiamata GET a /api/v2/export.</div>
+      </section>
+
+      <section class="card">
+        <h2>Import</h2>
+        <p>Scarica l'export da <span class="mono">/api/v2/export</span> e salvalo dove vuoi.</p>
+        <button id="importBtn" class="primary" disabled>Scarica export</button>
+        <div class="status" id="importStatus"></div>
+      </section>
+
+      <section class="card">
+        <h2>Export</h2>
+        <p>Carica un <span class="mono">config.json</span> e imposta i GUID dei servizi.</p>
+        <div class="field">
+          <label for="configFile">config.json</label>
+          <input id="configFile" type="file" accept="application/json" />
+        </div>
+
+        <div class="grid" id="guidFields">
+          <div class="field">
+            <label for="guidCamera">HypernodeCameraService</label>
+            <input id="guidCamera" type="text" />
+          </div>
+          <div class="field">
+            <label for="guidAuth">HypernodeAuthService</label>
+            <input id="guidAuth" type="text" />
+          </div>
+          <div class="field">
+            <label for="guidEvent">HypernodeEventService</label>
+            <input id="guidEvent" type="text" />
+          </div>
+          <div class="field">
+            <label for="guidRecording">HypernodeRecordingService</label>
+            <input id="guidRecording" type="text" />
+          </div>
+          <div class="field">
+            <label for="guidSnapshot">HypernodeSnapshotService</label>
+            <input id="guidSnapshot" type="text" />
+          </div>
+        </div>
+
+        <button id="exportBtn" class="primary" disabled>Scarica config aggiornato</button>
+        <div class="status" id="exportStatus"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

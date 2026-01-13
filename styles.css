@@ -1,0 +1,131 @@
+:root {
+  color-scheme: light;
+  --bg: #f6f1e9;
+  --panel: #fff7e6;
+  --ink: #1b1a17;
+  --muted: #6b5f4e;
+  --accent: #2f6b4f;
+  --accent-strong: #244f3b;
+  --border: #d7cbb7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Gill Sans", "Trebuchet MS", sans-serif;
+  background: radial-gradient(circle at top, #fefcf7, var(--bg));
+  color: var(--ink);
+}
+
+.app {
+  max-width: 880px;
+  margin: 32px auto 64px;
+  padding: 0 20px;
+  display: grid;
+  gap: 20px;
+}
+
+.header {
+  padding: 16px 20px;
+  background: #fff4da;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 24px rgba(27, 26, 23, 0.08);
+}
+
+.header h1 {
+  margin: 0 0 8px;
+  font-size: 32px;
+  letter-spacing: 0.5px;
+}
+
+.header p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.card {
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 20px rgba(27, 26, 23, 0.06);
+}
+
+.card h2 {
+  margin-top: 0;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+label {
+  font-weight: 600;
+}
+
+input[type="text"],
+input[type="file"] {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 15px;
+  background: #fffdf8;
+}
+
+button.primary {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+button.primary:disabled {
+  background: #a6b3a9;
+  cursor: not-allowed;
+  transform: none;
+}
+
+button.primary:not(:disabled):hover {
+  background: var(--accent-strong);
+  transform: translateY(-1px);
+}
+
+.grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.status {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  min-height: 18px;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.mono {
+  font-family: "SFMono-Regular", "Courier New", monospace;
+}
+
+@media (max-width: 600px) {
+  .header h1 {
+    font-size: 26px;
+  }
+}
