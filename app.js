@@ -2,21 +2,17 @@ const baseUrlInput = document.getElementById("baseUrl");
 const importBtn = document.getElementById("importBtn");
 const importStatus = document.getElementById("importStatus");
 const configFileInput = document.getElementById("configFile");
-const mappingFileInput = document.getElementById("mappingFile");
+const mappingOldFileInput = document.getElementById("mappingOldFile");
+const mappingNewFileInput = document.getElementById("mappingNewFile");
 const exportBtn = document.getElementById("exportBtn");
 const exportStatus = document.getElementById("exportStatus");
-
-const guidFields = {
-  HypernodeCameraService: document.getElementById("guidCamera"),
-  HypernodeAuthService: document.getElementById("guidAuth"),
-  HypernodeEventService: document.getElementById("guidEvent"),
-  HypernodeRecordingService: document.getElementById("guidRecording"),
-  HypernodeSnapshotService: document.getElementById("guidSnapshot"),
-};
+const associationList = document.getElementById("associationList");
 
 let loadedConfig = null;
 let loadedFilename = "config.json";
-let loadedMapping = null;
+let loadedMappingOld = null;
+let loadedMappingNew = null;
+const associationSelections = new Map();
 
 function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "").trim();
@@ -29,7 +25,9 @@ function setStatus(el, message, isError = false) {
 
 function updateImportState() {
   const baseUrlReady = normalizeBaseUrl(baseUrlInput.value) !== "";
-  importBtn.disabled = !(baseUrlReady && loadedConfig && loadedMapping);
+  const mappingsReady = loadedMappingOld && loadedMappingNew;
+  const associationsReady = mappingsReady && areAssociationsComplete();
+  importBtn.disabled = !(baseUrlReady && loadedConfig && mappingsReady && associationsReady);
 }
 
 function updateExportState() {
@@ -154,6 +152,115 @@ function applyGuidToConfig(config, serviceName, guid) {
   }
 }
 
+function extractServices(mapping) {
+  if (!mapping || !Array.isArray(mapping.services)) {
+    return [];
+  }
+  return mapping.services
+    .filter((service) => service && typeof service === "object")
+    .map((service) => ({
+      serviceGuid: service.serviceGuid,
+      serviceType: service.serviceType,
+      serviceName: service.serviceName || "",
+    }))
+    .filter(
+      (service) =>
+        typeof service.serviceGuid === "string" && typeof service.serviceType === "string"
+    );
+}
+
+function formatServiceLabel(service) {
+  const name = service.serviceName ? ` - ${service.serviceName}` : "";
+  return `${service.serviceGuid}${name}`;
+}
+
+function clearAssociationList(message) {
+  associationList.innerHTML = "";
+  const placeholder = document.createElement("div");
+  placeholder.className = "placeholder";
+  placeholder.textContent = message;
+  associationList.appendChild(placeholder);
+}
+
+function buildAssociationUI(oldServices, newServices) {
+  associationSelections.clear();
+  associationList.innerHTML = "";
+
+  if (oldServices.length === 0) {
+    clearAssociationList("Nessun servizio trovato nel mapping vecchio.");
+    return;
+  }
+
+  const newByType = newServices.reduce((acc, service) => {
+    if (!acc[service.serviceType]) {
+      acc[service.serviceType] = [];
+    }
+    acc[service.serviceType].push(service);
+    return acc;
+  }, {});
+
+  oldServices.forEach((oldService) => {
+    const row = document.createElement("div");
+    row.className = "association-row";
+
+    const typeLabel = document.createElement("div");
+    typeLabel.className = "association-label";
+    typeLabel.textContent = oldService.serviceType;
+
+    const oldGuid = document.createElement("div");
+    oldGuid.className = "association-guid";
+    oldGuid.textContent = formatServiceLabel(oldService);
+
+    const select = document.createElement("select");
+    select.dataset.oldGuid = oldService.serviceGuid;
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Seleziona nuovo servizio";
+    select.appendChild(placeholder);
+
+    const candidates = newByType[oldService.serviceType] || [];
+    candidates.forEach((candidate) => {
+      const option = document.createElement("option");
+      option.value = candidate.serviceGuid;
+      option.textContent = formatServiceLabel(candidate);
+      select.appendChild(option);
+    });
+
+    if (candidates.length === 1) {
+      select.value = candidates[0].serviceGuid;
+      associationSelections.set(oldService.serviceGuid, candidates[0].serviceGuid);
+    } else if (oldService.serviceName) {
+      const match = candidates.find((candidate) => candidate.serviceName === oldService.serviceName);
+      if (match) {
+        select.value = match.serviceGuid;
+        associationSelections.set(oldService.serviceGuid, match.serviceGuid);
+      }
+    }
+
+    select.addEventListener("change", () => {
+      if (select.value) {
+        associationSelections.set(oldService.serviceGuid, select.value);
+      } else {
+        associationSelections.delete(oldService.serviceGuid);
+      }
+      updateImportState();
+    });
+
+    row.appendChild(typeLabel);
+    row.appendChild(oldGuid);
+    row.appendChild(select);
+    associationList.appendChild(row);
+  });
+}
+
+function areAssociationsComplete() {
+  if (!loadedMappingOld) {
+    return false;
+  }
+  const oldServices = extractServices(loadedMappingOld);
+  return oldServices.every((service) => associationSelections.has(service.serviceGuid));
+}
+
 function handleConfigFile(event) {
   const file = event.target.files[0];
   if (!file) {
@@ -163,12 +270,12 @@ function handleConfigFile(event) {
   }
 
   loadedFilename = file.name || "config.json";
-  setStatus(exportStatus, "Caricamento file...", false);
+  setStatus(importStatus, "Caricamento config...", false);
 
   readConfigFile(file)
     .then((config) => {
       loadedConfig = config;
-      setStatus(importStatus, "config.json caricato. Carica il mapping.");
+      setStatus(importStatus, "config.json caricato. Carica i mapping.");
       updateImportState();
     })
     .catch((error) => {
@@ -178,66 +285,91 @@ function handleConfigFile(event) {
     });
 }
 
-function applyMappingToFields(mapping) {
-  if (!mapping || !Array.isArray(mapping.services)) {
-    return false;
-  }
-
-  let updated = false;
-  mapping.services.forEach((service) => {
-    if (!service || typeof service !== "object") {
-      return;
-    }
-    const field = guidFields[service.serviceType];
-    if (field && typeof service.serviceGuid === "string") {
-      field.value = service.serviceGuid;
-      updated = true;
-    }
-  });
-
-  return updated;
-}
-
-function handleMappingFile(event) {
+function handleMappingOldFile(event) {
   const file = event.target.files[0];
   if (!file) {
-    loadedMapping = null;
+    loadedMappingOld = null;
+    associationSelections.clear();
+    clearAssociationList("Carica entrambi i mapping per vedere le associazioni.");
     updateImportState();
     return;
   }
 
-  setStatus(importStatus, "Caricamento mapping...", false);
+  setStatus(importStatus, "Caricamento mapping vecchio...", false);
 
   readConfigFile(file)
-    .then((mapping) => {
-      loadedMapping = mapping;
-      const didUpdate = applyMappingToFields(mapping);
-      if (didUpdate) {
-        setStatus(importStatus, "Mapping caricato. Campi precompilati.");
+    .then((mappingOld) => {
+      loadedMappingOld = mappingOld;
+      const oldServices = extractServices(mappingOld);
+      const newServices = extractServices(loadedMappingNew);
+      if (loadedMappingNew) {
+        buildAssociationUI(oldServices, newServices);
       } else {
-        setStatus(importStatus, "Mapping caricato ma nessun GUID trovato.", true);
+        clearAssociationList("Carica anche il mapping nuovo.");
       }
+      setStatus(importStatus, "Mapping vecchio caricato.");
       updateImportState();
     })
     .catch((error) => {
-      loadedMapping = null;
-      setStatus(importStatus, `Errore mapping: ${error.message}`, true);
+      loadedMappingOld = null;
+      clearAssociationList("Carica entrambi i mapping per vedere le associazioni.");
+      setStatus(importStatus, `Errore mapping vecchio: ${error.message}`, true);
       updateImportState();
     });
 }
 
-function applyMappingToConfig(config, mapping) {
-  if (!mapping || !Array.isArray(mapping.services)) {
+function handleMappingNewFile(event) {
+  const file = event.target.files[0];
+  if (!file) {
+    loadedMappingNew = null;
+    associationSelections.clear();
+    clearAssociationList("Carica entrambi i mapping per vedere le associazioni.");
+    updateImportState();
     return;
   }
-  mapping.services.forEach((service) => {
-    if (!service || typeof service !== "object") {
+
+  setStatus(importStatus, "Caricamento mapping nuovo...", false);
+
+  readConfigFile(file)
+    .then((mappingNew) => {
+      loadedMappingNew = mappingNew;
+      const oldServices = extractServices(loadedMappingOld);
+      const newServices = extractServices(mappingNew);
+      if (loadedMappingOld) {
+        buildAssociationUI(oldServices, newServices);
+      } else {
+        clearAssociationList("Carica anche il mapping vecchio.");
+      }
+      setStatus(importStatus, "Mapping nuovo caricato.");
+      updateImportState();
+    })
+    .catch((error) => {
+      loadedMappingNew = null;
+      clearAssociationList("Carica entrambi i mapping per vedere le associazioni.");
+      setStatus(importStatus, `Errore mapping nuovo: ${error.message}`, true);
+      updateImportState();
+    });
+}
+
+function applyGuidMapToConfig(config, guidMap) {
+  function visit(node) {
+    if (!node || typeof node !== "object") {
       return;
     }
-    if (typeof service.serviceType === "string" && typeof service.serviceGuid === "string") {
-      applyGuidToConfig(config, service.serviceType, service.serviceGuid);
+
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+      return;
     }
-  });
+
+    if (typeof node.serviceGuid === "string" && guidMap.has(node.serviceGuid)) {
+      node.serviceGuid = guidMap.get(node.serviceGuid);
+    }
+
+    Object.values(node).forEach(visit);
+  }
+
+  visit(config);
 }
 
 async function handleImport() {
@@ -252,8 +384,13 @@ async function handleImport() {
     return;
   }
 
-  if (!loadedMapping) {
-    setStatus(importStatus, "Carica prima un mapping.json.", true);
+  if (!loadedMappingOld || !loadedMappingNew) {
+    setStatus(importStatus, "Carica i mapping del vecchio e nuovo server.", true);
+    return;
+  }
+
+  if (!areAssociationsComplete()) {
+    setStatus(importStatus, "Completa tutte le associazioni.", true);
     return;
   }
 
@@ -262,7 +399,8 @@ async function handleImport() {
 
   try {
     const configCopy = JSON.parse(JSON.stringify(loadedConfig));
-    applyMappingToConfig(configCopy, loadedMapping);
+    const guidMap = new Map(associationSelections);
+    applyGuidMapToConfig(configCopy, guidMap);
 
     const response = await fetch(`${baseUrl}/api/v2/import`, {
       method: "POST",
@@ -295,8 +433,10 @@ baseUrlInput.addEventListener("input", updateImportState);
 baseUrlInput.addEventListener("input", updateExportState);
 exportBtn.addEventListener("click", handleExport);
 configFileInput.addEventListener("change", handleConfigFile);
-mappingFileInput.addEventListener("change", handleMappingFile);
+mappingOldFileInput.addEventListener("change", handleMappingOldFile);
+mappingNewFileInput.addEventListener("change", handleMappingNewFile);
 importBtn.addEventListener("click", handleImport);
 
 updateImportState();
 updateExportState();
+clearAssociationList("Carica entrambi i mapping per vedere le associazioni.");

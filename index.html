@@ -31,36 +31,25 @@
 
       <section class="card">
         <h2>Import</h2>
-        <p>Carica un <span class="mono">config.json</span> e un <span class="mono">mapping.json</span> per inviare l'import.</p>
+        <p>Carica il <span class="mono">config.json</span>, il mapping del vecchio server e il mapping del nuovo server.</p>
         <div class="field">
-          <label for="configFile">config.json</label>
+          <label for="configFile">config.json (vecchio server)</label>
           <input id="configFile" type="file" accept="application/json" />
         </div>
         <div class="field">
-          <label for="mappingFile">mapping.json (nuovo server)</label>
-          <input id="mappingFile" type="file" accept="application/json" />
+          <label for="mappingOldFile">mapping.json (vecchio server)</label>
+          <input id="mappingOldFile" type="file" accept="application/json" />
         </div>
 
-        <div class="grid" id="guidFields">
-          <div class="field">
-            <label for="guidCamera">HypernodeCameraService</label>
-            <input id="guidCamera" type="text" />
-          </div>
-          <div class="field">
-            <label for="guidAuth">HypernodeAuthService</label>
-            <input id="guidAuth" type="text" />
-          </div>
-          <div class="field">
-            <label for="guidEvent">HypernodeEventService</label>
-            <input id="guidEvent" type="text" />
-          </div>
-          <div class="field">
-            <label for="guidRecording">HypernodeRecordingService</label>
-            <input id="guidRecording" type="text" />
-          </div>
-          <div class="field">
-            <label for="guidSnapshot">HypernodeSnapshotService</label>
-            <input id="guidSnapshot" type="text" />
+        <div class="field">
+          <label for="mappingNewFile">mapping.json (nuovo server)</label>
+          <input id="mappingNewFile" type="file" accept="application/json" />
+        </div>
+
+        <div class="associations">
+          <h3>Associazioni servizi</h3>
+          <div id="associationList" class="association-list">
+            <div class="placeholder">Carica entrambi i mapping per vedere le associazioni.</div>
           </div>
         </div>
 

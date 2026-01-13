@@ -108,6 +108,65 @@ button.primary:not(:disabled):hover {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.associations {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  background: #fffdf5;
+}
+
+.associations h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.association-list {
+  display: grid;
+  gap: 10px;
+}
+
+.association-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(220px, 2fr) minmax(220px, 2fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fff9ea;
+  border: 1px solid var(--border);
+}
+
+.association-row select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fffdf8;
+  font-size: 14px;
+}
+
+.association-label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.association-guid {
+  font-family: "SFMono-Regular", "Courier New", monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.placeholder {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+@media (max-width: 700px) {
+  .association-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .status {
   margin-top: 10px;
   color: var(--muted);
