@@ -10,6 +10,7 @@ const importStatus = document.getElementById("importStatus");
 const configFileInput = document.getElementById("configFile");
 const resetBtn = document.getElementById("resetBtn");
 const resetStatus = document.getElementById("resetStatus");
+const resetSecretInput = document.getElementById("resetSecret");
 const exportBtn = document.getElementById("exportBtn");
 const exportStatus = document.getElementById("exportStatus");
 const associationList = document.getElementById("associationList");
@@ -288,6 +289,12 @@ async function handleReset() {
     return;
   }
 
+  const resetSecret = resetSecretInput.value.trim();
+  if (!resetSecret) {
+    setStatus(resetStatus, "Inserisci il reset secret.", true);
+    return;
+  }
+
   const confirmed = window.confirm("Sei sicuro di voler resettare il server?");
   if (!confirmed) {
     setStatus(resetStatus, "Reset annullato.");
@@ -302,6 +309,7 @@ async function handleReset() {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
+        "x-reset-secret": resetSecret,
       },
     });
 
