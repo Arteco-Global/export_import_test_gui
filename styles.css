@@ -1,12 +1,12 @@
 :root {
-  color-scheme: light;
-  --bg: #f6f1e9;
-  --panel: #fff7e6;
-  --ink: #1b1a17;
-  --muted: #6b5f4e;
-  --accent: #2f6b4f;
-  --accent-strong: #244f3b;
-  --border: #d7cbb7;
+  color-scheme: dark;
+  --bg: #0f1417;
+  --panel: #1a2226;
+  --ink: #e7e2d8;
+  --muted: #a69f91;
+  --accent: #3fa37a;
+  --accent-strong: #2c7a5a;
+  --border: #2a353a;
 }
 
 * {
@@ -16,7 +16,7 @@
 body {
   margin: 0;
   font-family: "Gill Sans", "Trebuchet MS", sans-serif;
-  background: radial-gradient(circle at top, #fefcf7, var(--bg));
+  background: radial-gradient(circle at top, #1a2328, var(--bg));
   color: var(--ink);
 }
 
@@ -30,10 +30,10 @@ body {
 
 .header {
   padding: 16px 20px;
-  background: #fff4da;
+  background: #1c262b;
   border: 1px solid var(--border);
   border-radius: 14px;
-  box-shadow: 0 12px 24px rgba(27, 26, 23, 0.08);
+  box-shadow: 0 12px 24px rgba(6, 8, 10, 0.35);
 }
 
 .header h1 {
@@ -52,7 +52,7 @@ body {
   border-radius: 14px;
   background: var(--panel);
   border: 1px solid var(--border);
-  box-shadow: 0 10px 20px rgba(27, 26, 23, 0.06);
+  box-shadow: 0 10px 20px rgba(6, 8, 10, 0.3);
 }
 
 .card h2 {
@@ -77,7 +77,8 @@ select {
   border-radius: 8px;
   border: 1px solid var(--border);
   font-size: 15px;
-  background: #fffdf8;
+  background: #0f1518;
+  color: var(--ink);
 }
 
 button.primary {
@@ -94,7 +95,7 @@ button.primary {
 }
 
 button.primary:disabled {
-  background: #a6b3a9;
+  background: #2b3a34;
   cursor: not-allowed;
   transform: none;
 }
@@ -115,7 +116,7 @@ button.primary:not(:disabled):hover {
   padding: 12px;
   border-radius: 12px;
   border: 1px dashed var(--border);
-  background: #fffdf5;
+  background: #151c20;
 }
 
 .associations h3 {
@@ -132,7 +133,7 @@ button.primary:not(:disabled):hover {
   padding: 24px 16px;
   border-radius: 12px;
   border: 1px dashed var(--border);
-  background: #fffdf5;
+  background: #151c20;
   color: var(--muted);
   font-size: 14px;
 }
@@ -141,7 +142,7 @@ button.primary:not(:disabled):hover {
   width: 32px;
   height: 32px;
   border-radius: 999px;
-  border: 3px solid #d9d0bf;
+  border: 3px solid #2a353a;
   border-top-color: var(--accent);
   animation: spin 1s linear infinite;
 }
@@ -194,7 +195,7 @@ button.primary:not(:disabled):hover {
   align-items: center;
   padding: 8px 10px;
   border-radius: 10px;
-  background: #fff9ea;
+  background: #12181b;
   border: 1px solid var(--border);
 }
 
@@ -202,7 +203,8 @@ button.primary:not(:disabled):hover {
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: #fffdf8;
+  background: #0f1518;
+  color: var(--ink);
   font-size: 14px;
 }
 
