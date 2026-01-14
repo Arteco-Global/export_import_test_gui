@@ -26,7 +26,7 @@ const associationSelections = new Map();
 const selectedImportKeys = new Set();
 let accessToken = "";
 let lastBaseUrl = "";
-const IMPORT_KEYS = ["CONFIG", "MAPPING", "SERVER", "CORETRUST"];
+const IMPORT_KEYS = ["CONFIG", "MAPPING", "SERVER", "CORETRUST", "USERS"];
 
 function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "").trim();
