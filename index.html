@@ -43,8 +43,6 @@
         <div class="hint" id="baseUrlHint">
           Login obbligatorio: il token ottenuto viene usato per reset, mapping, import ed export.
         </div>
-        <button id="resetBtn" class="primary">Reset server</button>
-        <div class="status" id="resetStatus"></div>
       </section>
 
       <section class="card">
@@ -52,6 +50,13 @@
         <p>Scarica l'export da <span class="mono">/api/v2/export</span> e salvalo dove vuoi.</p>
         <button id="exportBtn" class="primary" disabled>Scarica export</button>
         <div class="status" id="exportStatus"></div>
+      </section>
+
+      <section class="card">
+        <h2>Reset server</h2>
+        <p>Ripristina il server allo stato iniziale (richiede login).<br> Almeno un utente 'admin' deve rimanere presente !</p>
+        <button id="resetBtn" class="primary">Reset server</button>
+        <div class="status" id="resetStatus"></div>
       </section>
 
       <section class="card">
