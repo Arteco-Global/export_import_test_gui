@@ -8,13 +8,14 @@ const loginStatus = document.getElementById("loginStatus");
 const importBtn = document.getElementById("importBtn");
 const importStatus = document.getElementById("importStatus");
 const configFileInput = document.getElementById("configFile");
-const fetchMappingBtn = document.getElementById("fetchMappingBtn");
 const resetBtn = document.getElementById("resetBtn");
 const resetStatus = document.getElementById("resetStatus");
 const exportBtn = document.getElementById("exportBtn");
 const exportStatus = document.getElementById("exportStatus");
 const associationList = document.getElementById("associationList");
 const importKeyList = document.getElementById("importKeyList");
+const importLoading = document.getElementById("importLoading");
+const importBody = document.getElementById("importBody");
 
 let loadedConfig = null;
 let loadedFilename = "config.json";
@@ -60,7 +61,6 @@ function updateAuthState() {
   authServiceSelect.disabled = authServices.length === 0;
   loginBtn.disabled = !(baseUrlReady && credsReady && authServiceReady);
   resetBtn.disabled = !(baseUrlReady && tokenReady);
-  fetchMappingBtn.disabled = !(baseUrlReady && tokenReady);
 
   updateImportState();
   updateExportState();
@@ -413,6 +413,11 @@ function renderImportKeyOptions(payloadByKey) {
   });
 }
 
+function setImportLoading(isLoading) {
+  importLoading.classList.toggle("hidden", !isLoading);
+  importBody.classList.toggle("hidden", isLoading);
+}
+
 function applyGuidToConfig(config, serviceName, guid) {
   let updated = false;
 
@@ -633,6 +638,7 @@ function handleConfigFile(event) {
     importKeyList.innerHTML = '<div class="placeholder">Carica un config.json per selezionare le chiavi.</div>';
     associationSelections.clear();
     clearAssociationList("Carica il config.json con MAPPING e ottieni quello nuovo.");
+    setImportLoading(false);
     updateImportState();
     return;
   }
@@ -670,6 +676,11 @@ function handleConfigFile(event) {
       }
       setStatus(importStatus, "config.json caricato. Ottieni il mapping nuovo.");
       updateImportState();
+
+      const baseUrl = normalizeBaseUrl(baseUrlInput.value);
+      if (baseUrl && accessToken) {
+        handleFetchMapping();
+      }
     })
     .catch((error) => {
       loadedConfig = null;
@@ -677,6 +688,7 @@ function handleConfigFile(event) {
       loadedPayloadByKey = {};
       selectedImportKeys.clear();
       importKeyList.innerHTML = '<div class="placeholder">Carica un config.json per selezionare le chiavi.</div>';
+      setImportLoading(false);
       setStatus(importStatus, `Errore JSON: ${error.message}`, true);
       updateImportState();
     });
@@ -694,7 +706,7 @@ async function handleFetchMapping() {
     return;
   }
 
-  fetchMappingBtn.disabled = true;
+  setImportLoading(true);
   setStatus(importStatus, "Richiesta mapping attuale...", false);
 
   try {
@@ -726,6 +738,7 @@ async function handleFetchMapping() {
     setStatus(importStatus, `Errore mapping nuovo: ${error.message}`, true);
     updateImportState();
   } finally {
+    setImportLoading(false);
     updateAuthState();
   }
 }
@@ -902,10 +915,10 @@ loginBtn.addEventListener("click", handleLogin);
 exportBtn.addEventListener("click", handleExport);
 resetBtn.addEventListener("click", handleReset);
 configFileInput.addEventListener("change", handleConfigFile);
-fetchMappingBtn.addEventListener("click", handleFetchMapping);
 importBtn.addEventListener("click", handleImport);
 
 resetAuthServices("Carica gli auth service");
 resetAccessToken();
 updateAuthState();
 clearAssociationList("Carica il config.json con MAPPING e ottieni quello nuovo.");
+setImportLoading(false);
