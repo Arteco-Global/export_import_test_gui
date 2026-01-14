@@ -26,7 +26,7 @@ const associationSelections = new Map();
 const selectedImportKeys = new Set();
 let accessToken = "";
 let lastBaseUrl = "";
-const IMPORT_KEYS = ["CONFIG", "MAPPING", "SERVER", "CORETRUST", "USERS"];
+const IMPORT_KEYS = ["CHANNELS", "MAPPING", "SERVER", "CORETRUST", "USERS"];
 
 function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "").trim();
@@ -360,7 +360,7 @@ function extractConfigPayload(payload) {
       payloadByKey[key] = value;
     }
   });
-  const config = payloadByKey.CONFIG ?? null;
+  const config = payloadByKey.CHANNELS ?? null;
   const mapping = payloadByKey.MAPPING ?? null;
 
   return { config, mapping, payloadByKey };
@@ -390,7 +390,7 @@ function renderImportKeyOptions(payloadByKey) {
     checkbox.type = "checkbox";
     checkbox.value = key;
     checkbox.checked = true;
-    checkbox.disabled = key === "CONFIG" || key === "MAPPING";
+    checkbox.disabled = key === "CHANNELS" || key === "MAPPING";
 
     if (checkbox.checked) {
       selectedImportKeys.add(key);
@@ -655,7 +655,7 @@ function handleConfigFile(event) {
       renderImportKeyOptions(loadedPayloadByKey);
 
       if (!loadedConfig) {
-        setStatus(importStatus, "CONFIG non trovato nel config.json.", true);
+        setStatus(importStatus, "CHANNELS non trovato nel config.json.", true);
         updateImportState();
         return;
       }
@@ -850,8 +850,8 @@ async function handleImport() {
   try {
     const payloadCopy = JSON.parse(JSON.stringify(loadedPayloadByKey));
     const guidMap = new Map(associationSelections);
-    if (payloadCopy.CONFIG) {
-      applyGuidMapToConfig(payloadCopy.CONFIG, guidMap);
+    if (payloadCopy.CHANNELS) {
+      applyGuidMapToConfig(payloadCopy.CHANNELS, guidMap);
     }
 
     const importPayload = {};
