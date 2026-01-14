@@ -56,14 +56,10 @@
 
       <section class="card">
         <h2>Import</h2>
-        <p>Carica il <span class="mono">config.json</span> e il mapping del vecchio server. Il mapping nuovo si ottiene dal server.</p>
+        <p>Carica il <span class="mono">config.json</span> con chiavi <span class="mono">CONFIG</span> e <span class="mono">MAPPING</span>. Se presenti, puoi decidere se importare anche <span class="mono">Configurazione del server</span> e <span class="mono">Informazioni della licenza</span>.</p>
         <div class="field">
           <label for="configFile">config.json (vecchio server)</label>
           <input id="configFile" type="file" accept="application/json" />
-        </div>
-        <div class="field">
-          <label for="mappingOldFile">mapping.json (vecchio server)</label>
-          <input id="mappingOldFile" type="file" accept="application/json" />
         </div>
 
         <button id="fetchMappingBtn" class="primary">Ottieni mapping attuale</button>
@@ -71,6 +67,12 @@
         <div class="associations">
           <h3>Associazioni servizi</h3>
           <h5>Servizio Precedente -> Nuovo servizio</h5>
+          <div class="import-keys">
+            <h4>Chiavi da importare</h4>
+            <div id="importKeyList" class="import-key-list">
+              <div class="placeholder">Carica un config.json per selezionare le chiavi.</div>
+            </div>
+          </div>
           <div id="associationList" class="association-list">
             <div class="placeholder">Carica entrambi i mapping per vedere le associazioni.</div>
           </div>

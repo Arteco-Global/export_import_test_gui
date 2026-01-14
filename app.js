@@ -8,21 +8,24 @@ const loginStatus = document.getElementById("loginStatus");
 const importBtn = document.getElementById("importBtn");
 const importStatus = document.getElementById("importStatus");
 const configFileInput = document.getElementById("configFile");
-const mappingOldFileInput = document.getElementById("mappingOldFile");
 const fetchMappingBtn = document.getElementById("fetchMappingBtn");
 const resetBtn = document.getElementById("resetBtn");
 const resetStatus = document.getElementById("resetStatus");
 const exportBtn = document.getElementById("exportBtn");
 const exportStatus = document.getElementById("exportStatus");
 const associationList = document.getElementById("associationList");
+const importKeyList = document.getElementById("importKeyList");
 
 let loadedConfig = null;
 let loadedFilename = "config.json";
 let loadedMappingOld = null;
 let loadedMappingNew = null;
+let loadedPayloadByKey = {};
 const associationSelections = new Map();
+const selectedImportKeys = new Set();
 let accessToken = "";
 let lastBaseUrl = "";
+const IMPORT_KEYS = ["CONFIG", "MAPPING", "SERVER", "CORETRUST"];
 
 function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "").trim();
@@ -330,6 +333,86 @@ function readConfigFile(file) {
   });
 }
 
+function readPayloadKey(payload, key) {
+  if (Object.prototype.hasOwnProperty.call(payload, key)) {
+    return payload[key];
+  }
+  const lower = key.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(payload, lower)) {
+    return payload[lower];
+  }
+  const capitalized = key.charAt(0) + key.slice(1).toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(payload, capitalized)) {
+    return payload[capitalized];
+  }
+  return undefined;
+}
+
+function extractConfigPayload(payload) {
+  if (!payload || typeof payload !== "object") {
+    return { config: null, mapping: null, payloadByKey: {} };
+  }
+
+  const payloadByKey = {};
+  IMPORT_KEYS.forEach((key) => {
+    const value = readPayloadKey(payload, key);
+    if (value !== undefined) {
+      payloadByKey[key] = value;
+    }
+  });
+  const config = payloadByKey.CONFIG ?? null;
+  const mapping = payloadByKey.MAPPING ?? null;
+
+  return { config, mapping, payloadByKey };
+}
+
+function renderImportKeyOptions(payloadByKey) {
+  importKeyList.innerHTML = "";
+  selectedImportKeys.clear();
+
+  const keysAvailable = IMPORT_KEYS.filter((key) =>
+    Object.prototype.hasOwnProperty.call(payloadByKey, key)
+  );
+
+  if (keysAvailable.length === 0) {
+    const placeholder = document.createElement("div");
+    placeholder.className = "placeholder";
+    placeholder.textContent = "Nessuna chiave trovata nel config.json.";
+    importKeyList.appendChild(placeholder);
+    return;
+  }
+
+  keysAvailable.forEach((key) => {
+    const item = document.createElement("label");
+    item.className = "import-key-item";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = key;
+    checkbox.checked = true;
+    checkbox.disabled = key === "CONFIG" || key === "MAPPING";
+
+    if (checkbox.checked) {
+      selectedImportKeys.add(key);
+    }
+
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) {
+        selectedImportKeys.add(key);
+      } else {
+        selectedImportKeys.delete(key);
+      }
+    });
+
+    const text = document.createElement("span");
+    text.textContent = key;
+
+    item.appendChild(checkbox);
+    item.appendChild(text);
+    importKeyList.appendChild(item);
+  });
+}
+
 function applyGuidToConfig(config, serviceName, guid) {
   let updated = false;
 
@@ -466,7 +549,7 @@ function buildAssociationUI(oldServices, newServices) {
   associationList.innerHTML = "";
 
   if (oldServices.length === 0) {
-    clearAssociationList("Nessun servizio trovato nel mapping vecchio.");
+    clearAssociationList("Nessun servizio trovato nel MAPPING del config.json.");
     return;
   }
 
@@ -544,6 +627,12 @@ function handleConfigFile(event) {
   const file = event.target.files[0];
   if (!file) {
     loadedConfig = null;
+    loadedMappingOld = null;
+    loadedPayloadByKey = {};
+    selectedImportKeys.clear();
+    importKeyList.innerHTML = '<div class="placeholder">Carica un config.json per selezionare le chiavi.</div>';
+    associationSelections.clear();
+    clearAssociationList("Carica il config.json con MAPPING e ottieni quello nuovo.");
     updateImportState();
     return;
   }
@@ -552,47 +641,43 @@ function handleConfigFile(event) {
   setStatus(importStatus, "Caricamento config...", false);
 
   readConfigFile(file)
-    .then((config) => {
-      loadedConfig = config;
-      setStatus(importStatus, "config.json caricato. Carica i mapping.");
-      updateImportState();
-    })
-    .catch((error) => {
-      loadedConfig = null;
-      setStatus(importStatus, `Errore JSON: ${error.message}`, true);
-      updateImportState();
-    });
-}
+    .then((payload) => {
+      const extracted = extractConfigPayload(payload);
+      loadedConfig = extracted.config;
+      loadedMappingOld = extracted.mapping;
+      loadedPayloadByKey = extracted.payloadByKey;
+      renderImportKeyOptions(loadedPayloadByKey);
 
-function handleMappingOldFile(event) {
-  const file = event.target.files[0];
-  if (!file) {
-    loadedMappingOld = null;
-    associationSelections.clear();
-    clearAssociationList("Carica il mapping vecchio e ottieni quello nuovo.");
-    updateImportState();
-    return;
-  }
+      if (!loadedConfig) {
+        setStatus(importStatus, "CONFIG non trovato nel config.json.", true);
+        updateImportState();
+        return;
+      }
 
-  setStatus(importStatus, "Caricamento mapping vecchio...", false);
+      if (!loadedMappingOld) {
+        setStatus(importStatus, "MAPPING non trovato nel config.json.", true);
+        clearAssociationList("Serve un MAPPING valido nel config.json.");
+        updateImportState();
+        return;
+      }
 
-  readConfigFile(file)
-    .then((mappingOld) => {
-      loadedMappingOld = mappingOld;
-      const oldServices = extractServices(mappingOld);
+      const oldServices = extractServices(loadedMappingOld);
       const newServices = extractServices(loadedMappingNew);
       if (loadedMappingNew) {
         buildAssociationUI(oldServices, newServices);
       } else {
         clearAssociationList("Ottieni il mapping nuovo dal server.");
       }
-      setStatus(importStatus, "Mapping vecchio caricato.");
+      setStatus(importStatus, "config.json caricato. Ottieni il mapping nuovo.");
       updateImportState();
     })
     .catch((error) => {
+      loadedConfig = null;
       loadedMappingOld = null;
-      clearAssociationList("Carica il mapping vecchio e ottieni quello nuovo.");
-      setStatus(importStatus, `Errore mapping vecchio: ${error.message}`, true);
+      loadedPayloadByKey = {};
+      selectedImportKeys.clear();
+      importKeyList.innerHTML = '<div class="placeholder">Carica un config.json per selezionare le chiavi.</div>';
+      setStatus(importStatus, `Errore JSON: ${error.message}`, true);
       updateImportState();
     });
 }
@@ -631,13 +716,13 @@ async function handleFetchMapping() {
     if (loadedMappingOld) {
       buildAssociationUI(oldServices, newServices);
     } else {
-      clearAssociationList("Carica anche il mapping vecchio.");
+      clearAssociationList("Carica anche il config.json con MAPPING.");
     }
     setStatus(importStatus, "Mapping nuovo ottenuto.");
     updateImportState();
   } catch (error) {
     loadedMappingNew = null;
-    clearAssociationList("Carica il mapping vecchio e ottieni quello nuovo.");
+    clearAssociationList("Carica il config.json con MAPPING e ottieni quello nuovo.");
     setStatus(importStatus, `Errore mapping nuovo: ${error.message}`, true);
     updateImportState();
   } finally {
@@ -737,7 +822,7 @@ async function handleImport() {
   }
 
   if (!loadedMappingOld || !loadedMappingNew) {
-    setStatus(importStatus, "Carica il mapping vecchio e ottieni quello nuovo.", true);
+    setStatus(importStatus, "Carica il config.json con MAPPING e ottieni quello nuovo.", true);
     return;
   }
 
@@ -750,9 +835,18 @@ async function handleImport() {
   setStatus(importStatus, "Invio import in corso...");
 
   try {
-    const configCopy = JSON.parse(JSON.stringify(loadedConfig));
+    const payloadCopy = JSON.parse(JSON.stringify(loadedPayloadByKey));
     const guidMap = new Map(associationSelections);
-    applyGuidMapToConfig(configCopy, guidMap);
+    if (payloadCopy.CONFIG) {
+      applyGuidMapToConfig(payloadCopy.CONFIG, guidMap);
+    }
+
+    const importPayload = {};
+    selectedImportKeys.forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(payloadCopy, key)) {
+        importPayload[key] = payloadCopy[key];
+      }
+    });
 
     const response = await fetch(`${baseUrl}/api/v2/import`, {
       method: "POST",
@@ -760,7 +854,7 @@ async function handleImport() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify(configCopy),
+      body: JSON.stringify(importPayload),
     });
 
     if (!response.ok) {
@@ -808,11 +902,10 @@ loginBtn.addEventListener("click", handleLogin);
 exportBtn.addEventListener("click", handleExport);
 resetBtn.addEventListener("click", handleReset);
 configFileInput.addEventListener("change", handleConfigFile);
-mappingOldFileInput.addEventListener("change", handleMappingOldFile);
 fetchMappingBtn.addEventListener("click", handleFetchMapping);
 importBtn.addEventListener("click", handleImport);
 
 resetAuthServices("Carica gli auth service");
 resetAccessToken();
 updateAuthState();
-clearAssociationList("Carica il mapping vecchio e ottieni quello nuovo.");
+clearAssociationList("Carica il config.json con MAPPING e ottieni quello nuovo.");

@@ -123,6 +123,28 @@ button.primary:not(:disabled):hover {
   font-size: 18px;
 }
 
+.import-keys {
+  margin-bottom: 12px;
+}
+
+.import-keys h4 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.import-key-list {
+  display: grid;
+  gap: 8px;
+}
+
+.import-key-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--ink);
+}
+
 .association-list {
   display: grid;
   gap: 10px;
