@@ -798,11 +798,8 @@ function escapeHtml(value) {
 
 function formatImportResponse(payload) {
   const parts = [];
-  if (payload.message) {
-    parts.push(`<div>${escapeHtml(payload.message)}</div>`);
-  }
-
-  console.log("Import payload:", payload);
+  const message = payload.message || (payload.success === true ? "OK" : "Import fallito.");
+  parts.push(`<div>${escapeHtml(message)}</div>`);
 
   const data = payload.data || {};
 
@@ -833,10 +830,6 @@ function formatImportResponse(payload) {
   if (Array.isArray(data.errors) && data.errors.length > 0) {
     const rows = data.errors.map((err) => `<li>${escapeHtml(err)}</li>`).join("");
     parts.push(`<div>Errori:</div><ul>${rows}</ul>`);
-  }
-
-  if (parts.length === 0) {
-    return payload.success === true ? "OK" : "Import fallito.";
   }
 
   return parts.join("");
@@ -913,12 +906,17 @@ async function handleImport() {
       },
       body: JSON.stringify(importPayload),
     });
+    const payload = await response.json().catch(() => null);
 
     if (!response.ok) {
+      if (payload) {
+        const message = formatImportResponse(payload);
+        setStatus(importStatus, message, true);
+        return;
+      }
       throw new Error(`Errore HTTP ${response.status}`);
     }
 
-    const payload = await response.json().catch(() => null);
     if (payload) {
       const message = formatImportResponse(payload);
       setStatus(importStatus, message, payload.success !== true);
