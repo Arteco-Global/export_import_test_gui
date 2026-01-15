@@ -781,11 +781,13 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
-function formatImportErrors(payload) {
+function formatImportResponse(payload) {
   const parts = [];
   if (payload.message) {
     parts.push(`<div>${escapeHtml(payload.message)}</div>`);
   }
+
+  console.log("Import payload:", payload);
 
   const data = payload.data || {};
 
@@ -819,7 +821,7 @@ function formatImportErrors(payload) {
   }
 
   if (parts.length === 0) {
-    return "Import fallito.";
+    return payload.success === true ? "OK" : "Import fallito.";
   }
 
   return parts.join("");
@@ -883,10 +885,9 @@ async function handleImport() {
     }
 
     const payload = await response.json().catch(() => null);
-    if (payload && payload.success === true) {
-      setStatus(importStatus, "OK");
-    } else if (payload) {
-      setStatus(importStatus, formatImportErrors(payload), true);
+    if (payload) {
+      const message = formatImportResponse(payload);
+      setStatus(importStatus, message, payload.success !== true);
     } else {
       setStatus(importStatus, "Import fallito.", true);
     }
