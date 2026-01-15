@@ -17,6 +17,9 @@ const associationList = document.getElementById("associationList");
 const importKeyList = document.getElementById("importKeyList");
 const importLoading = document.getElementById("importLoading");
 const importBody = document.getElementById("importBody");
+const exportSection = document.getElementById("exportSection");
+const resetSection = document.getElementById("resetSection");
+const importSection = document.getElementById("importSection");
 
 let loadedConfig = null;
 let loadedFilename = "config.json";
@@ -62,6 +65,10 @@ function updateAuthState() {
   authServiceSelect.disabled = authServices.length === 0;
   loginBtn.disabled = !(baseUrlReady && credsReady && authServiceReady);
   resetBtn.disabled = !(baseUrlReady && tokenReady);
+
+  exportSection.classList.toggle("hidden", !tokenReady);
+  resetSection.classList.toggle("hidden", !tokenReady);
+  importSection.classList.toggle("hidden", !tokenReady);
 
   updateImportState();
   updateExportState();
@@ -128,6 +135,10 @@ function renderAuthServices(services) {
     option.textContent = service.name ? `${service.guid} - ${service.name}` : service.guid;
     authServiceSelect.appendChild(option);
   });
+
+  if (services.length > 0) {
+    authServiceSelect.value = services[0].guid;
+  }
 }
 
 async function handleFetchAuthServices() {
