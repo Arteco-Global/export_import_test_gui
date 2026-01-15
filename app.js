@@ -317,7 +317,22 @@ async function handleReset() {
       throw new Error(`Errore HTTP ${response.status}`);
     }
 
-    setStatus(resetStatus, "OK");
+//     {
+//     "success": true,
+//     "message": "Reset completed",
+//     "data": {
+//         "deleteResults": [],
+//         "errors": []
+//     }
+// }
+
+    const payload = await response.json().catch(() => null);
+    if (payload) {
+      const message = formatResetResponse(payload);
+      setStatus(resetStatus, message, payload.success !== true);
+    } else {
+      setStatus(resetStatus, "Reset completato.");
+    }
   } catch (error) {
     setStatus(resetStatus, `Errore reset: ${error.message}`, true);
   } finally {
@@ -822,6 +837,25 @@ function formatImportResponse(payload) {
 
   if (parts.length === 0) {
     return payload.success === true ? "OK" : "Import fallito.";
+  }
+
+  return parts.join("");
+}
+
+function formatResetResponse(payload) {
+  const parts = [];
+  if (payload.message) {
+    parts.push(`<div>${escapeHtml(payload.message)}</div>`);
+  }
+
+  const data = payload.data || {};
+  if (Array.isArray(data.errors) && data.errors.length > 0) {
+    const rows = data.errors.map((err) => `<li>${escapeHtml(err)}</li>`).join("");
+    parts.push(`<div>Errori:</div><ul>${rows}</ul>`);
+  }
+
+  if (parts.length === 0) {
+    return payload.success === true ? "OK" : "Reset fallito.";
   }
 
   return parts.join("");
