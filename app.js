@@ -324,20 +324,17 @@ async function handleReset() {
       },
     });
 
+    const payload = await response.json().catch(() => null);
+
     if (!response.ok) {
+      if (payload) {
+        const message = formatResetResponse(payload);
+        setStatus(resetStatus, message, true);
+        return;
+      }
       throw new Error(`Errore HTTP ${response.status}`);
     }
 
-//     {
-//     "success": true,
-//     "message": "Reset completed",
-//     "data": {
-//         "deleteResults": [],
-//         "errors": []
-//     }
-// }
-
-    const payload = await response.json().catch(() => null);
     if (payload) {
       const message = formatResetResponse(payload);
       setStatus(resetStatus, message, payload.success !== true);
