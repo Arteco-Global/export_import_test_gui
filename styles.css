@@ -165,6 +165,28 @@ button.primary:not(:disabled):hover {
   gap: 8px;
 }
 
+.import-summary {
+  margin-bottom: 12px;
+}
+
+.import-summary h4 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.import-summary-list {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.import-summary-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .import-key-item {
   display: flex;
   align-items: center;

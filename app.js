@@ -17,6 +17,8 @@ const associationList = document.getElementById("associationList");
 const importKeyList = document.getElementById("importKeyList");
 const importLoading = document.getElementById("importLoading");
 const importBody = document.getElementById("importBody");
+const importSummary = document.getElementById("importSummary");
+const importSummaryList = document.getElementById("importSummaryList");
 const exportSection = document.getElementById("exportSection");
 const resetSection = document.getElementById("resetSection");
 const importSection = document.getElementById("importSection");
@@ -39,6 +41,7 @@ const IMPORT_KEYS = [
   "SNAPSHOTS",
   "RECORDINGS",
   "EVENTS",
+  "METADATA",
   "EXPORTED_AT",
   "GATEWAY_VERSION",
 ];
@@ -421,7 +424,7 @@ function renderImportKeyOptions(payloadByKey) {
   importKeyList.innerHTML = "";
   selectedImportKeys.clear();
   const checkboxByKey = new Map();
-  const dependentKeys = ["SNAPSHOTS", "RECORDINGS", "EVENTS"];
+  const dependentKeys = ["SNAPSHOTS", "RECORDINGS", "EVENTS", "METADATA"];
   const dependentKeyState = new Map();
   const hiddenKeys = new Set(["MAPPING", "EXPORTED_AT", "GATEWAY_VERSION"]);
 
@@ -519,6 +522,55 @@ function renderImportKeyOptions(payloadByKey) {
 function setImportLoading(isLoading) {
   importLoading.classList.toggle("hidden", !isLoading);
   importBody.classList.toggle("hidden", isLoading);
+}
+
+function countPayloadItems(value) {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+  if (Array.isArray(value)) {
+    return value.length;
+  }
+  if (typeof value === "object") {
+    return Object.keys(value).length;
+  }
+  return 1;
+}
+
+function updateImportSummary() {
+  if (!loadedPayloadByKey || !loadedMappingOld || !loadedMappingNew) {
+    importSummary.classList.add("hidden");
+    importSummaryList.innerHTML = "";
+    return;
+  }
+
+  const keysAvailable = IMPORT_KEYS.filter((key) =>
+    Object.prototype.hasOwnProperty.call(loadedPayloadByKey, key)
+  );
+
+  importSummaryList.innerHTML = "";
+  if (keysAvailable.length === 0) {
+    const placeholder = document.createElement("div");
+    placeholder.className = "placeholder";
+    placeholder.textContent = "Nessuna chiave trovata nel config.json.";
+    importSummaryList.appendChild(placeholder);
+    importSummary.classList.remove("hidden");
+    return;
+  }
+
+  keysAvailable.forEach((key) => {
+    const row = document.createElement("div");
+    row.className = "import-summary-item";
+    const label = document.createElement("span");
+    label.textContent = key;
+    const count = document.createElement("span");
+    count.textContent = String(countPayloadItems(loadedPayloadByKey[key]));
+    row.appendChild(label);
+    row.appendChild(count);
+    importSummaryList.appendChild(row);
+  });
+
+  importSummary.classList.remove("hidden");
 }
 
 function applyGuidToConfig(config, serviceName, guid) {
@@ -741,6 +793,7 @@ function handleConfigFile(event) {
     importKeyList.innerHTML = '<div class="placeholder">Carica un config.json per selezionare le chiavi.</div>';
     associationSelections.clear();
     clearAssociationList("Carica il config.json con MAPPING e ottieni quello nuovo.");
+    updateImportSummary();
     setImportLoading(false);
     updateImportState();
     return;
@@ -756,6 +809,7 @@ function handleConfigFile(event) {
       loadedMappingOld = extracted.mapping;
       loadedPayloadByKey = extracted.payloadByKey;
       renderImportKeyOptions(loadedPayloadByKey);
+      updateImportSummary();
 
       if (!loadedConfig) {
         setStatus(importStatus, "CHANNELS non trovato nel config.json.", true);
@@ -766,6 +820,7 @@ function handleConfigFile(event) {
       if (!loadedMappingOld) {
         setStatus(importStatus, "MAPPING non trovato nel config.json.", true);
         clearAssociationList("Serve un MAPPING valido nel config.json.");
+        updateImportSummary();
         updateImportState();
         return;
       }
@@ -779,6 +834,7 @@ function handleConfigFile(event) {
       }
       setStatus(importStatus, "config.json caricato. Ottieni il mapping nuovo.");
       updateImportState();
+      updateImportSummary();
 
       const baseUrl = normalizeBaseUrl(baseUrlInput.value);
       if (baseUrl && accessToken) {
@@ -791,6 +847,7 @@ function handleConfigFile(event) {
       loadedPayloadByKey = {};
       selectedImportKeys.clear();
       importKeyList.innerHTML = '<div class="placeholder">Carica un config.json per selezionare le chiavi.</div>';
+      updateImportSummary();
       setImportLoading(false);
       setStatus(importStatus, `Errore JSON: ${error.message}`, true);
       updateImportState();
@@ -810,6 +867,7 @@ async function handleFetchMapping() {
   }
 
   setImportLoading(true);
+  updateImportSummary();
   setStatus(importStatus, "Richiesta mapping attuale...", false);
 
   try {
@@ -835,11 +893,13 @@ async function handleFetchMapping() {
     }
     setStatus(importStatus, "Mapping nuovo ottenuto.");
     updateImportState();
+    updateImportSummary();
   } catch (error) {
     loadedMappingNew = null;
     clearAssociationList("Carica il config.json con MAPPING e ottieni quello nuovo.");
     setStatus(importStatus, `Errore mapping nuovo: ${error.message}`, true);
     updateImportState();
+    updateImportSummary();
   } finally {
     setImportLoading(false);
     updateAuthState();
