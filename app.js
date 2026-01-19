@@ -30,7 +30,18 @@ const associationSelections = new Map();
 const selectedImportKeys = new Set();
 let accessToken = "";
 let lastBaseUrl = "";
-const IMPORT_KEYS = ["CHANNELS", "MAPPING", "SERVER", "CORETRUST", "USERS"];
+const IMPORT_KEYS = [
+  "CHANNELS",
+  "MAPPING",
+  "SERVER",
+  "CORETRUST",
+  "USERS",
+  "SNAPSHOTS",
+  "RECORDINGS",
+  "EVENTS",
+  "EXPORTED_AT",
+  "GATEWAY_VERSION",
+];
 
 function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "").trim();
@@ -44,9 +55,18 @@ function setStatus(el, message, isError = false) {
 function updateImportState() {
   const baseUrlReady = normalizeBaseUrl(baseUrlInput.value) !== "";
   const authReady = accessToken !== "";
+  const hasSelection = selectedImportKeys.size > 0;
+  const channelsSelected = selectedImportKeys.has("CHANNELS");
   const mappingsReady = loadedMappingOld && loadedMappingNew;
-  const associationsReady = mappingsReady && areAssociationsComplete();
-  importBtn.disabled = !(baseUrlReady && authReady && loadedConfig && mappingsReady && associationsReady);
+  const channelsReady = channelsSelected ? !!loadedConfig : true;
+  const associationsReady = channelsSelected ? mappingsReady && areAssociationsComplete() : true;
+  importBtn.disabled = !(
+    baseUrlReady &&
+    authReady &&
+    hasSelection &&
+    channelsReady &&
+    associationsReady
+  );
 }
 
 function updateExportState() {
@@ -400,6 +420,16 @@ function extractConfigPayload(payload) {
 function renderImportKeyOptions(payloadByKey) {
   importKeyList.innerHTML = "";
   selectedImportKeys.clear();
+  const checkboxByKey = new Map();
+  const dependentKeys = ["SNAPSHOTS", "RECORDINGS", "EVENTS"];
+  const dependentKeyState = new Map();
+  const hiddenKeys = new Set(["MAPPING", "EXPORTED_AT", "GATEWAY_VERSION"]);
+
+  hiddenKeys.forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(payloadByKey, key)) {
+      selectedImportKeys.add(key);
+    }
+  });
 
   const keysAvailable = IMPORT_KEYS.filter((key) =>
     Object.prototype.hasOwnProperty.call(payloadByKey, key)
@@ -414,6 +444,9 @@ function renderImportKeyOptions(payloadByKey) {
   }
 
   keysAvailable.forEach((key) => {
+    if (hiddenKeys.has(key)) {
+      return;
+    }
     const item = document.createElement("label");
     item.className = "import-key-item";
 
@@ -421,7 +454,7 @@ function renderImportKeyOptions(payloadByKey) {
     checkbox.type = "checkbox";
     checkbox.value = key;
     checkbox.checked = true;
-    checkbox.disabled = key === "CHANNELS" || key === "MAPPING";
+    checkbox.disabled = key === "MAPPING";
 
     if (checkbox.checked) {
       selectedImportKeys.add(key);
@@ -433,6 +466,30 @@ function renderImportKeyOptions(payloadByKey) {
       } else {
         selectedImportKeys.delete(key);
       }
+
+      if (key === "CHANNELS") {
+        const channelsEnabled = checkbox.checked;
+        dependentKeys.forEach((depKey) => {
+          const depCheckbox = checkboxByKey.get(depKey);
+          if (!depCheckbox) {
+            return;
+          }
+          if (!channelsEnabled) {
+            dependentKeyState.set(depKey, depCheckbox.checked);
+            depCheckbox.checked = false;
+            depCheckbox.disabled = true;
+            selectedImportKeys.delete(depKey);
+          } else {
+            const shouldCheck = dependentKeyState.get(depKey);
+            depCheckbox.disabled = false;
+            if (shouldCheck) {
+              depCheckbox.checked = true;
+              selectedImportKeys.add(depKey);
+            }
+          }
+        });
+      }
+      updateImportState();
     });
 
     const text = document.createElement("span");
@@ -441,7 +498,22 @@ function renderImportKeyOptions(payloadByKey) {
     item.appendChild(checkbox);
     item.appendChild(text);
     importKeyList.appendChild(item);
+    checkboxByKey.set(key, checkbox);
   });
+
+  const channelsCheckbox = checkboxByKey.get("CHANNELS");
+  if (channelsCheckbox && !channelsCheckbox.checked) {
+    dependentKeys.forEach((depKey) => {
+      const depCheckbox = checkboxByKey.get(depKey);
+      if (!depCheckbox) {
+        return;
+      }
+      depCheckbox.checked = false;
+      depCheckbox.disabled = true;
+      selectedImportKeys.delete(depKey);
+    });
+  }
+  updateImportState();
 }
 
 function setImportLoading(isLoading) {
