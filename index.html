@@ -17,7 +17,7 @@
         <h2>Base URL</h2>
         <div class="field">
           <label for="baseUrl">Base URL</label>
-          <input id="baseUrl" type="text" placeholder="https://example.com" value="https://V05250217.lan.omniaweb.cloud" />
+          <input id="baseUrl" type="text" placeholder="https://example.com" value="https://V01260012.lan.omniaweb.cloud" />
         </div>
         <div class="grid">
           <div class="field">
@@ -50,6 +50,18 @@
         <p>Scarica l'export da <span class="mono">/api/v2/export</span> e salvalo dove vuoi.</p>
         <button id="exportBtn" class="primary" disabled>Scarica export</button>
         <div class="status" id="exportStatus"></div>
+      </section>
+
+      <section class="card hidden" id="backupsSection">
+        <h2>Backups</h2>
+        <p>Elenco dei backup presenti su <span class="mono">/api/v2/backups</span>.</p>
+        <div class="backups-actions">
+          <button id="refreshBackupsBtn" class="primary" disabled>Ricarica lista</button>
+        </div>
+        <div id="backupsList" class="backups-list">
+          <div class="placeholder">Login per vedere i backup disponibili.</div>
+        </div>
+        <div class="status" id="backupsStatus"></div>
       </section>
 
       <section class="card hidden" id="resetSection">

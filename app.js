@@ -13,6 +13,10 @@ const resetStatus = document.getElementById("resetStatus");
 const resetSecretInput = document.getElementById("resetSecret");
 const exportBtn = document.getElementById("exportBtn");
 const exportStatus = document.getElementById("exportStatus");
+const backupsSection = document.getElementById("backupsSection");
+const backupsList = document.getElementById("backupsList");
+const backupsStatus = document.getElementById("backupsStatus");
+const refreshBackupsBtn = document.getElementById("refreshBackupsBtn");
 const associationList = document.getElementById("associationList");
 const importKeyList = document.getElementById("importKeyList");
 const importLoading = document.getElementById("importLoading");
@@ -88,8 +92,10 @@ function updateAuthState() {
   authServiceSelect.disabled = authServices.length === 0;
   loginBtn.disabled = !(baseUrlReady && credsReady && authServiceReady);
   resetBtn.disabled = !(baseUrlReady && tokenReady);
+  refreshBackupsBtn.disabled = !(baseUrlReady && tokenReady);
 
   exportSection.classList.toggle("hidden", !tokenReady);
+  backupsSection.classList.toggle("hidden", !tokenReady);
   resetSection.classList.toggle("hidden", !tokenReady);
   importSection.classList.toggle("hidden", !tokenReady);
 
@@ -112,6 +118,7 @@ function resetAccessToken(message) {
   if (message) {
     setStatus(loginStatus, message, false);
   }
+  clearBackupsList("Login per vedere i backup disponibili.");
   updateAuthState();
 }
 
@@ -258,6 +265,7 @@ async function handleLogin() {
 
     accessToken = token;
     setStatus(loginStatus, "Login OK.");
+    handleFetchBackups();
   } catch (error) {
     accessToken = "";
     setStatus(loginStatus, `Errore login: ${error.message}`, true);
@@ -535,6 +543,198 @@ function countPayloadItems(value) {
     return Object.keys(value).length;
   }
   return 1;
+}
+
+function clearBackupsList(message) {
+  if (!backupsList) {
+    return;
+  }
+  backupsList.innerHTML = "";
+  const placeholder = document.createElement("div");
+  placeholder.className = "placeholder";
+  placeholder.textContent = message;
+  backupsList.appendChild(placeholder);
+  if (backupsStatus) {
+    setStatus(backupsStatus, "");
+  }
+}
+
+function normalizeBackups(payload) {
+  if (!payload) {
+    return [];
+  }
+  const candidates =
+    (Array.isArray(payload) && payload) ||
+    payload?.backups ||
+    payload?.data ||
+    payload?.root?.backups ||
+    payload?.root?.data ||
+    payload?.root ||
+    [];
+
+  if (!Array.isArray(candidates)) {
+    return [];
+  }
+
+  return candidates
+    .map((item) => {
+      if (typeof item === "string" || typeof item === "number") {
+        const value = String(item);
+        return { timestamp: value, label: value };
+      }
+      if (item && typeof item === "object") {
+        const timestamp =
+          item.createdAt ||
+          item.timestamp ||
+          item.ts ||
+          item.time ||
+          item.id ||
+          item.name ||
+          "";
+        if (!timestamp) {
+          return null;
+        }
+        const label =
+          item.name ||
+          item.label ||
+          item.filename ||
+          item.file ||
+          String(timestamp);
+        return { timestamp: String(timestamp), label: String(label) };
+      }
+      return null;
+    })
+    .filter(Boolean);
+}
+
+function sanitizeFilenamePart(value) {
+  return String(value).replace(/[^a-zA-Z0-9._-]+/g, "_");
+}
+
+function renderBackupsList(backups) {
+  if (!backupsList) {
+    return;
+  }
+  backupsList.innerHTML = "";
+
+  if (backups.length === 0) {
+    clearBackupsList("Nessun backup disponibile.");
+    return;
+  }
+
+  backups.forEach((backup) => {
+    const row = document.createElement("div");
+    row.className = "backup-row";
+
+    const label = document.createElement("div");
+    label.className = "backup-label";
+    label.textContent = backup.label;
+
+    const button = document.createElement("button");
+    button.className = "primary";
+    button.textContent = "Download";
+    button.addEventListener("click", () => {
+      handleDownloadBackup(backup.timestamp, backup.label, button);
+    });
+
+    row.appendChild(label);
+    row.appendChild(button);
+    backupsList.appendChild(row);
+  });
+}
+
+async function handleFetchBackups() {
+  const baseUrl = normalizeBaseUrl(baseUrlInput.value);
+  if (!baseUrl) {
+    setStatus(backupsStatus, "Inserisci un base URL valido.", true);
+    return;
+  }
+
+  if (!accessToken) {
+    setStatus(backupsStatus, "Fai login prima di leggere i backup.", true);
+    return;
+  }
+
+  refreshBackupsBtn.disabled = true;
+  setStatus(backupsStatus, "Caricamento backup...", false);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/v2/backups`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+
+    const payload = await response.json().catch(() => ({}));
+    const backups = normalizeBackups(payload);
+    renderBackupsList(backups);
+    setStatus(backupsStatus, "Lista backup aggiornata.");
+  } catch (error) {
+    clearBackupsList("Errore nel caricamento dei backup.");
+    setStatus(backupsStatus, `Errore backup: ${error.message}`, true);
+  } finally {
+    updateAuthState();
+  }
+}
+
+async function handleDownloadBackup(timestamp, label, button) {
+  const baseUrl = normalizeBaseUrl(baseUrlInput.value);
+  if (!baseUrl) {
+    setStatus(backupsStatus, "Inserisci un base URL valido.", true);
+    return;
+  }
+
+  if (!accessToken) {
+    setStatus(backupsStatus, "Fai login prima di scaricare.", true);
+    return;
+  }
+
+  if (!timestamp) {
+    setStatus(backupsStatus, "Timestamp backup non valido.", true);
+    return;
+  }
+
+  if (button) {
+    button.disabled = true;
+  }
+  setStatus(backupsStatus, `Download backup ${label || timestamp}...`, false);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/v2/backups/${encodeURIComponent(timestamp)}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const safePart = sanitizeFilenamePart(label || timestamp);
+    link.href = downloadUrl;
+    link.download = `backup_${safePart || "download"}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(downloadUrl);
+    setStatus(backupsStatus, "Backup scaricato. Controlla la cartella Download.");
+  } catch (error) {
+    setStatus(backupsStatus, `Errore download backup: ${error.message}`, true);
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+    updateAuthState();
+  }
 }
 
 function updateImportSummary() {
@@ -1095,6 +1295,7 @@ fetchAuthServicesBtn.addEventListener("click", handleFetchAuthServices);
 loginBtn.addEventListener("click", handleLogin);
 exportBtn.addEventListener("click", handleExport);
 resetBtn.addEventListener("click", handleReset);
+refreshBackupsBtn.addEventListener("click", handleFetchBackups);
 configFileInput.addEventListener("change", handleConfigFile);
 importBtn.addEventListener("click", handleImport);
 

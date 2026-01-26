@@ -195,6 +195,32 @@ button.primary:not(:disabled):hover {
   color: var(--ink);
 }
 
+.backups-actions {
+  margin: 12px 0;
+}
+
+.backups-list {
+  display: grid;
+  gap: 10px;
+}
+
+.backup-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #12181b;
+  border: 1px solid var(--border);
+}
+
+.backup-label {
+  font-family: "SFMono-Regular", "Courier New", monospace;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 .association-list {
   display: grid;
   gap: 10px;
