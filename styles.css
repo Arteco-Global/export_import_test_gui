@@ -199,6 +199,46 @@ button.primary:not(:disabled):hover {
   margin: 12px 0;
 }
 
+.backups-accordion {
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  background: #151c20;
+  padding: 10px 12px;
+}
+
+.backups-accordion summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.backups-accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+.backups-accordion[open] summary {
+  margin-bottom: 12px;
+}
+
+.backups-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #0f1518;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .backups-list {
   display: grid;
   gap: 10px;

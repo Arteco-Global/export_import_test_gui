@@ -2,7 +2,6 @@ const baseUrlInput = document.getElementById("baseUrl");
 const usernameInput = document.getElementById("username");
 const passwordInput = document.getElementById("password");
 const authServiceSelect = document.getElementById("authServiceSelect");
-const fetchAuthServicesBtn = document.getElementById("fetchAuthServicesBtn");
 const loginBtn = document.getElementById("loginBtn");
 const loginStatus = document.getElementById("loginStatus");
 const importBtn = document.getElementById("importBtn");
@@ -14,9 +13,11 @@ const resetSecretInput = document.getElementById("resetSecret");
 const exportBtn = document.getElementById("exportBtn");
 const exportStatus = document.getElementById("exportStatus");
 const backupsSection = document.getElementById("backupsSection");
+const backupsAccordion = document.getElementById("backupsAccordion");
 const backupsList = document.getElementById("backupsList");
 const backupsStatus = document.getElementById("backupsStatus");
 const refreshBackupsBtn = document.getElementById("refreshBackupsBtn");
+const backupsSummaryCount = document.getElementById("backupsSummaryCount");
 const associationList = document.getElementById("associationList");
 const importKeyList = document.getElementById("importKeyList");
 const importLoading = document.getElementById("importLoading");
@@ -36,6 +37,10 @@ const associationSelections = new Map();
 const selectedImportKeys = new Set();
 let accessToken = "";
 let lastBaseUrl = "";
+let backupsAutoRefreshTimer = null;
+let backupsAutoRefreshDisabled = false;
+const BACKUPS_AUTO_REFRESH_MS = 60000;
+const BACKUPS_REQUEST_TIMEOUT_MS = 8000;
 const IMPORT_KEYS = [
   "CHANNELS",
   "MAPPING",
@@ -85,12 +90,10 @@ function updateExportState() {
 function updateAuthState() {
   const baseUrlReady = normalizeBaseUrl(baseUrlInput.value) !== "";
   const credsReady = usernameInput.value.trim() !== "" && passwordInput.value !== "";
-  const authServiceReady = authServiceSelect.value !== "";
   const tokenReady = accessToken !== "";
 
-  fetchAuthServicesBtn.disabled = !baseUrlReady;
-  authServiceSelect.disabled = authServices.length === 0;
-  loginBtn.disabled = !(baseUrlReady && credsReady && authServiceReady);
+  authServiceSelect.disabled = authServices.length <= 1;
+  loginBtn.disabled = !(baseUrlReady && credsReady);
   resetBtn.disabled = !(baseUrlReady && tokenReady);
   refreshBackupsBtn.disabled = !(baseUrlReady && tokenReady);
 
@@ -118,6 +121,8 @@ function resetAccessToken(message) {
   if (message) {
     setStatus(loginStatus, message, false);
   }
+  stopBackupsAutoRefresh();
+  backupsAutoRefreshDisabled = false;
   clearBackupsList("Login per vedere i backup disponibili.");
   updateAuthState();
 }
@@ -171,15 +176,14 @@ function renderAuthServices(services) {
   }
 }
 
-async function handleFetchAuthServices() {
+async function loadAuthServices() {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
 
   if (!baseUrl) {
     setStatus(loginStatus, "Inserisci un base URL valido.", true);
-    return;
+    return [];
   }
 
-  fetchAuthServicesBtn.disabled = true;
   setStatus(loginStatus, "Caricamento auth service...", false);
 
   try {
@@ -197,25 +201,61 @@ async function handleFetchAuthServices() {
     if (services.length === 0) {
       resetAuthServices("Nessun auth service trovato");
       setStatus(loginStatus, "Nessun auth service disponibile.", true);
-      return;
+      return [];
     }
 
     authServices = services;
     renderAuthServices(services);
-    setStatus(loginStatus, "Auth service caricati. Seleziona e fai login.");
+    setStatus(loginStatus, "Auth service caricati.");
+    return services;
   } catch (error) {
     resetAuthServices("Carica gli auth service");
     setStatus(loginStatus, `Errore auth service: ${error.message}`, true);
+    return [];
   } finally {
     updateAuthState();
   }
+}
+
+async function performLogin(authGuid, baseUrl, username, password) {
+  const response = await fetch(`${baseUrl}/api/v2/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      username,
+      password,
+      authServiceGuid: authGuid,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Errore HTTP ${response.status}`);
+  }
+
+  const payload = await response.json().catch(() => null);
+  const token =
+    payload?.root?.access_token ||
+    payload?.access_token ||
+    payload?.root?.accessToken ||
+    "";
+
+  if (!token) {
+    throw new Error("Access token non trovato.");
+  }
+
+  accessToken = token;
+  setStatus(loginStatus, "Login OK.");
+  backupsAutoRefreshDisabled = false;
+  startBackupsAutoRefresh();
+  handleFetchBackups();
 }
 
 async function handleLogin() {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   const username = usernameInput.value.trim();
   const password = passwordInput.value;
-  const authGuid = authServiceSelect.value;
 
   if (!baseUrl) {
     setStatus(loginStatus, "Inserisci un base URL valido.", true);
@@ -227,45 +267,30 @@ async function handleLogin() {
     return;
   }
 
-  if (!authGuid) {
-    setStatus(loginStatus, "Seleziona un auth service.", true);
-    return;
-  }
-
   loginBtn.disabled = true;
   setStatus(loginStatus, "Login in corso...", false);
 
   try {
-    const response = await fetch(`${baseUrl}/api/v2/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username,
-        password,
-        authServiceGuid: authGuid,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Errore HTTP ${response.status}`);
+    let services = authServices;
+    if (services.length === 0) {
+      services = await loadAuthServices();
     }
 
-    const payload = await response.json().catch(() => null);
-    const token =
-      payload?.root?.access_token ||
-      payload?.access_token ||
-      payload?.root?.accessToken ||
-      "";
-
-    if (!token) {
-      throw new Error("Access token non trovato.");
+    if (services.length === 0) {
+      return;
     }
 
-    accessToken = token;
-    setStatus(loginStatus, "Login OK.");
-    handleFetchBackups();
+    if (services.length === 1) {
+      authServiceSelect.value = services[0].guid;
+    }
+
+    const authGuid = authServiceSelect.value;
+    if (services.length > 1 && !authGuid) {
+      setStatus(loginStatus, "Seleziona un auth service.", true);
+      return;
+    }
+
+    await performLogin(authGuid, baseUrl, username, password);
   } catch (error) {
     accessToken = "";
     setStatus(loginStatus, `Errore login: ${error.message}`, true);
@@ -545,6 +570,14 @@ function countPayloadItems(value) {
   return 1;
 }
 
+function setBackupsSummaryCount(count) {
+  if (!backupsSummaryCount) {
+    return;
+  }
+  const value = Number.isFinite(count) ? count : 0;
+  backupsSummaryCount.textContent = String(value);
+}
+
 function clearBackupsList(message) {
   if (!backupsList) {
     return;
@@ -557,6 +590,7 @@ function clearBackupsList(message) {
   if (backupsStatus) {
     setStatus(backupsStatus, "");
   }
+  setBackupsSummaryCount(0);
 }
 
 function normalizeBackups(payload) {
@@ -576,6 +610,20 @@ function normalizeBackups(payload) {
     return [];
   }
 
+  function deriveBackupTimestampFromName(name) {
+    if (!name || typeof name !== "string") {
+      return "";
+    }
+    const match = name.match(/^config-backup-(.+)\.zip$/i);
+    if (match) {
+      return match[1];
+    }
+    if (name.toLowerCase().endsWith(".zip")) {
+      return name.slice(0, -4);
+    }
+    return name;
+  }
+
   return candidates
     .map((item) => {
       if (typeof item === "string" || typeof item === "number") {
@@ -583,24 +631,33 @@ function normalizeBackups(payload) {
         return { timestamp: value, label: value };
       }
       if (item && typeof item === "object") {
-        const timestamp =
+        const name =
+          item.name ||
+          item.filename ||
+          item.file ||
+          "";
+        const createdAt =
           item.createdAt ||
+          item.created_at ||
+          item.created ||
+          "";
+        const derivedTimestamp = deriveBackupTimestampFromName(name);
+        const timestamp =
+          derivedTimestamp ||
           item.timestamp ||
           item.ts ||
           item.time ||
           item.id ||
-          item.name ||
           "";
-        if (!timestamp) {
+        if (!timestamp && !name && !createdAt) {
           return null;
         }
-        const label =
-          item.name ||
-          item.label ||
-          item.filename ||
-          item.file ||
-          String(timestamp);
-        return { timestamp: String(timestamp), label: String(label) };
+        const label = String(createdAt || timestamp || name);
+        return {
+          timestamp: String(timestamp || createdAt || name),
+          label,
+          createdAt: String(createdAt || ""),
+        };
       }
       return null;
     })
@@ -622,13 +679,14 @@ function renderBackupsList(backups) {
     return;
   }
 
+  setBackupsSummaryCount(backups.length);
   backups.forEach((backup) => {
     const row = document.createElement("div");
     row.className = "backup-row";
 
     const label = document.createElement("div");
     label.className = "backup-label";
-    label.textContent = backup.label;
+    label.textContent = formatBackupLabel(backup);
 
     const button = document.createElement("button");
     button.className = "primary";
@@ -643,7 +701,69 @@ function renderBackupsList(backups) {
   });
 }
 
-async function handleFetchBackups() {
+function formatBackupLabel(backup) {
+  const createdAt = backup.createdAt || "";
+  const parsed = createdAt ? new Date(createdAt) : null;
+  const dateText = parsed && !Number.isNaN(parsed.getTime())
+    ? formatDateTime(parsed)
+    : backup.label;
+  const relative = parsed && !Number.isNaN(parsed.getTime())
+    ? formatRelativeTime(parsed)
+    : "tempo non disponibile";
+  return `${dateText} (backup di ${relative})`;
+}
+
+function formatDateTime(date) {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear());
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+function formatRelativeTime(date) {
+  const diffMs = Date.now() - date.getTime();
+  if (!Number.isFinite(diffMs)) {
+    return "tempo non disponibile";
+  }
+  const diffSeconds = Math.max(0, Math.floor(diffMs / 1000));
+  if (diffSeconds < 60) {
+    return "meno di un minuto fa";
+  }
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) {
+    return `${diffMinutes} minut${diffMinutes === 1 ? "o" : "i"} fa`;
+  }
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} or${diffHours === 1 ? "a" : "e"} fa`;
+  }
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} giorn${diffDays === 1 ? "o" : "i"} fa`;
+}
+
+function startBackupsAutoRefresh() {
+  stopBackupsAutoRefresh();
+  if (backupsAutoRefreshDisabled) {
+    return;
+  }
+  backupsAutoRefreshTimer = window.setInterval(() => {
+    handleFetchBackups(true);
+  }, BACKUPS_AUTO_REFRESH_MS);
+}
+
+function stopBackupsAutoRefresh() {
+  if (backupsAutoRefreshTimer) {
+    window.clearInterval(backupsAutoRefreshTimer);
+    backupsAutoRefreshTimer = null;
+  }
+}
+
+async function handleFetchBackups(isAutoRefresh = false) {
+  if (isAutoRefresh && backupsAutoRefreshDisabled) {
+    return;
+  }
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (!baseUrl) {
     setStatus(backupsStatus, "Inserisci un base URL valido.", true);
@@ -655,8 +775,15 @@ async function handleFetchBackups() {
     return;
   }
 
-  refreshBackupsBtn.disabled = true;
+  if (!isAutoRefresh) {
+    refreshBackupsBtn.disabled = true;
+  }
   setStatus(backupsStatus, "Caricamento backup...", false);
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => {
+    controller.abort();
+  }, BACKUPS_REQUEST_TIMEOUT_MS);
 
   try {
     const response = await fetch(`${baseUrl}/api/v2/backups`, {
@@ -664,6 +791,7 @@ async function handleFetchBackups() {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -674,10 +802,22 @@ async function handleFetchBackups() {
     const backups = normalizeBackups(payload);
     renderBackupsList(backups);
     setStatus(backupsStatus, "Lista backup aggiornata.");
+    backupsAutoRefreshDisabled = false;
   } catch (error) {
     clearBackupsList("Errore nel caricamento dei backup.");
-    setStatus(backupsStatus, `Errore backup: ${error.message}`, true);
+    if (error.name === "AbortError") {
+      setStatus(
+        backupsStatus,
+        "Timeout backup: aggiornamento automatico sospeso.",
+        true
+      );
+      backupsAutoRefreshDisabled = true;
+      stopBackupsAutoRefresh();
+    } else {
+      setStatus(backupsStatus, `Errore backup: ${error.message}`, true);
+    }
   } finally {
+    window.clearTimeout(timeoutId);
     updateAuthState();
   }
 }
@@ -720,8 +860,12 @@ async function handleDownloadBackup(timestamp, label, button) {
     const downloadUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
     const safePart = sanitizeFilenamePart(label || timestamp);
+    const filenameBase = safePart || "backup_download";
+    const filename = filenameBase.toLowerCase().endsWith(".zip")
+      ? filenameBase
+      : `${filenameBase}.zip`;
     link.href = downloadUrl;
-    link.download = `backup_${safePart || "download"}.zip`;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -1291,7 +1435,6 @@ baseUrlInput.addEventListener("input", handleBaseUrlChange);
 usernameInput.addEventListener("input", handleCredentialChange);
 passwordInput.addEventListener("input", handleCredentialChange);
 authServiceSelect.addEventListener("change", updateAuthState);
-fetchAuthServicesBtn.addEventListener("click", handleFetchAuthServices);
 loginBtn.addEventListener("click", handleLogin);
 exportBtn.addEventListener("click", handleExport);
 resetBtn.addEventListener("click", handleReset);

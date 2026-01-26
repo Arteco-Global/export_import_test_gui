@@ -22,11 +22,11 @@
         <div class="grid">
           <div class="field">
             <label for="username">Username</label>
-            <input id="username" type="text" placeholder="admin" />
+            <input id="username" type="text" placeholder="admin" value="admin" />
           </div>
           <div class="field">
             <label for="password">Password</label>
-            <input id="password" type="password" placeholder="••••••" />
+            <input id="password" type="password" placeholder="••••••" value="admin" />
           </div>
         </div>
         <div class="field">
@@ -36,7 +36,6 @@
           </select>
         </div>
         <div class="grid">
-          <button id="fetchAuthServicesBtn" class="primary" disabled>Carica auth service</button>
           <button id="loginBtn" class="primary" disabled>Login</button>
         </div>
         <div class="status" id="loginStatus"></div>
@@ -58,9 +57,15 @@
         <div class="backups-actions">
           <button id="refreshBackupsBtn" class="primary" disabled>Ricarica lista</button>
         </div>
-        <div id="backupsList" class="backups-list">
-          <div class="placeholder">Login per vedere i backup disponibili.</div>
-        </div>
+        <details id="backupsAccordion" class="backups-accordion">
+          <summary>
+            Backup disponibili
+            <span id="backupsSummaryCount" class="backups-count">0</span>
+          </summary>
+          <div id="backupsList" class="backups-list">
+            <div class="placeholder">Login per vedere i backup disponibili.</div>
+          </div>
+        </details>
         <div class="status" id="backupsStatus"></div>
       </section>
 
