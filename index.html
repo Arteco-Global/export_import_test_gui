@@ -38,6 +38,10 @@
         <div class="grid">
           <button id="loginBtn" class="primary" disabled>Login</button>
         </div>
+        <div id="loginSpinner" class="login-spinner hidden">
+          <div class="spinner" aria-hidden="true"></div>
+          <div>Login in corso...</div>
+        </div>
         <div class="status" id="loginStatus"></div>
         <div class="hint" id="baseUrlHint">
           Login obbligatorio: il token ottenuto viene usato per reset, mapping, import ed export.
@@ -46,7 +50,7 @@
 
       <section class="card hidden" id="exportSection">
         <h2>Export</h2>
-        <p>Scarica l'export da <span class="mono">/api/v2/export</span> e salvalo dove vuoi.</p>
+        <p>Scarica l'export JSON da <span class="mono">/api/v2/export</span> e salvalo dove vuoi.</p>
         <button id="exportBtn" class="primary" disabled>Scarica export</button>
         <div class="status" id="exportStatus"></div>
       </section>

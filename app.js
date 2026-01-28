@@ -4,6 +4,7 @@ const passwordInput = document.getElementById("password");
 const authServiceSelect = document.getElementById("authServiceSelect");
 const loginBtn = document.getElementById("loginBtn");
 const loginStatus = document.getElementById("loginStatus");
+const loginSpinner = document.getElementById("loginSpinner");
 const importBtn = document.getElementById("importBtn");
 const importStatus = document.getElementById("importStatus");
 const configFileInput = document.getElementById("configFile");
@@ -68,6 +69,13 @@ function normalizeBaseUrl(value) {
 function setStatus(el, message, isError = false) {
   el.innerHTML = message;
   el.style.color = isError ? "#8b2f2f" : "";
+}
+
+function setLoginLoading(isLoading) {
+  if (!loginSpinner) {
+    return;
+  }
+  loginSpinner.classList.toggle("hidden", !isLoading);
 }
 
 function updateImportState() {
@@ -273,6 +281,7 @@ async function handleLogin() {
     return;
   }
 
+  setLoginLoading(true);
   loginBtn.disabled = true;
   setStatus(loginStatus, "Login in corso...", false);
 
@@ -301,6 +310,7 @@ async function handleLogin() {
     accessToken = "";
     setStatus(loginStatus, `Errore login: ${error.message}`, true);
   } finally {
+    setLoginLoading(false);
     updateAuthState();
   }
 }
@@ -336,13 +346,13 @@ async function handleExport() {
     const downloadUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = downloadUrl;
-    link.download = `export_${new Date().toISOString().slice(0, 10)}.zip`;
+    link.download = `export_${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(downloadUrl);
 
-    setStatus(exportStatus, "File scaricato. Controlla la cartella Download.");
+    setStatus(exportStatus, "File JSON scaricato. Controlla la cartella Download.");
   } catch (error) {
     setStatus(exportStatus, `Errore download: ${error.message}`, true);
   } finally {
