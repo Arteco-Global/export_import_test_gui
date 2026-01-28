@@ -94,6 +94,39 @@ button.primary {
   transition: transform 0.2s ease, background 0.2s ease;
 }
 
+button.secondary,
+button.ghost {
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+button.secondary {
+  border: 1px solid var(--border);
+  background: #141c20;
+  color: var(--ink);
+}
+
+button.secondary:hover {
+  border-color: #354247;
+  transform: translateY(-1px);
+}
+
+button.ghost {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+button.ghost:hover {
+  border-color: var(--border);
+  color: var(--ink);
+}
+
 button.primary:disabled {
   background: #2b3a34;
   cursor: not-allowed;
@@ -148,7 +181,7 @@ button.primary:not(:disabled):hover {
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 .import-keys {
@@ -261,6 +294,83 @@ button.primary:not(:disabled):hover {
   color: var(--muted);
 }
 
+.backup-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(9, 13, 16, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 10;
+}
+
+.modal-card {
+  width: min(760px, 100%);
+  max-height: 85vh;
+  overflow: auto;
+  background: #171f23;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 40px rgba(3, 6, 8, 0.55);
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-header h3 {
+  margin: 0;
+}
+
+.modal-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.modal-section h4 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.modal-list {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.inspect-row {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #12181b;
+  border: 1px solid var(--border);
+}
+
+.modal-summary {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.inspect-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .association-list {
   display: grid;
   gap: 10px;
@@ -315,6 +425,11 @@ button.primary:not(:disabled):hover {
 @media (max-width: 700px) {
   .association-row {
     grid-template-columns: 1fr;
+  }
+
+  .backup-row {
+    grid-template-columns: 1fr;
+    justify-items: start;
   }
 }
 

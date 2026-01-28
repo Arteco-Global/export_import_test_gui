@@ -18,6 +18,12 @@ const backupsList = document.getElementById("backupsList");
 const backupsStatus = document.getElementById("backupsStatus");
 const refreshBackupsBtn = document.getElementById("refreshBackupsBtn");
 const backupsSummaryCount = document.getElementById("backupsSummaryCount");
+const inspectModal = document.getElementById("inspectModal");
+const inspectCloseBtn = document.getElementById("inspectCloseBtn");
+const inspectTitle = document.getElementById("inspectTitle");
+const inspectMeta = document.getElementById("inspectMeta");
+const inspectCameras = document.getElementById("inspectCameras");
+const inspectSummary = document.getElementById("inspectSummary");
 const associationList = document.getElementById("associationList");
 const importKeyList = document.getElementById("importKeyList");
 const importLoading = document.getElementById("importLoading");
@@ -614,12 +620,12 @@ function normalizeBackups(payload) {
     if (!name || typeof name !== "string") {
       return "";
     }
-    const match = name.match(/^config-backup-(.+)\.zip$/i);
+    const match = name.match(/^config-backup-(.+)\.json$/i);
     if (match) {
       return match[1];
     }
-    if (name.toLowerCase().endsWith(".zip")) {
-      return name.slice(0, -4);
+    if (name.toLowerCase().endsWith(".json")) {
+      return name.slice(0, -5);
     }
     return name;
   }
@@ -688,6 +694,9 @@ function renderBackupsList(backups) {
     label.className = "backup-label";
     label.textContent = formatBackupLabel(backup);
 
+    const actions = document.createElement("div");
+    actions.className = "backup-actions";
+
     const button = document.createElement("button");
     button.className = "primary";
     button.textContent = "Download";
@@ -695,8 +704,17 @@ function renderBackupsList(backups) {
       handleDownloadBackup(backup.timestamp, backup.label, button);
     });
 
+    const inspectButton = document.createElement("button");
+    inspectButton.className = "secondary";
+    inspectButton.textContent = "Inspect";
+    inspectButton.addEventListener("click", () => {
+      handleInspectBackup(backup, inspectButton);
+    });
+
+    actions.appendChild(button);
+    actions.appendChild(inspectButton);
     row.appendChild(label);
-    row.appendChild(button);
+    row.appendChild(actions);
     backupsList.appendChild(row);
   });
 }
@@ -741,6 +759,132 @@ function formatRelativeTime(date) {
   }
   const diffDays = Math.floor(diffHours / 24);
   return `${diffDays} giorn${diffDays === 1 ? "o" : "i"} fa`;
+}
+
+function openInspectModal(title) {
+  if (!inspectModal) {
+    return;
+  }
+  if (inspectTitle) {
+    inspectTitle.textContent = title || "Dettagli backup";
+  }
+  inspectModal.classList.remove("hidden");
+}
+
+function closeInspectModal() {
+  if (!inspectModal) {
+    return;
+  }
+  inspectModal.classList.add("hidden");
+}
+
+function resetInspectModalBody() {
+  if (inspectMeta) {
+    inspectMeta.textContent = "";
+  }
+  if (inspectCameras) {
+    inspectCameras.innerHTML = "";
+  }
+  if (inspectSummary) {
+    inspectSummary.innerHTML = "";
+  }
+}
+
+function renderInspectMeta(backup) {
+  if (!inspectMeta) {
+    return;
+  }
+  const parts = [];
+  if (backup?.label) {
+    parts.push(`Backup: ${backup.label}`);
+  }
+  if (backup?.createdAt) {
+    const parsed = new Date(backup.createdAt);
+    if (!Number.isNaN(parsed.getTime())) {
+      parts.push(`Creato: ${formatDateTime(parsed)}`);
+    } else {
+      parts.push(`Creato: ${backup.createdAt}`);
+    }
+  }
+  inspectMeta.textContent = parts.join(" • ");
+}
+
+function renderInspectCameras(payload) {
+  if (!inspectCameras) {
+    return;
+  }
+  const channels =
+    payload?.CHANNELS ||
+    payload?.channels ||
+    payload?.root?.CHANNELS ||
+    payload?.root?.channels ||
+    [];
+  if (!Array.isArray(channels) || channels.length === 0) {
+    const placeholder = document.createElement("div");
+    placeholder.className = "placeholder";
+    placeholder.textContent = "Nessuna telecamera trovata nel backup.";
+    inspectCameras.appendChild(placeholder);
+    return;
+  }
+
+  channels.forEach((item, index) => {
+    const row = document.createElement("div");
+    row.className = "inspect-row";
+    const name =
+      item?.name ||
+      item?.cameraName ||
+      item?.label ||
+      item?.title ||
+      item?.descr ||
+      "";
+    const id =
+      item?.id ||
+      item?.guid ||
+      item?.channelId ||
+      item?.channelGuid ||
+      "";
+    const label = name || id || `Camera ${index + 1}`;
+    row.textContent = id && name ? `${label} (${id})` : label;
+    inspectCameras.appendChild(row);
+  });
+}
+
+function renderInspectSummary(payload) {
+  if (!inspectSummary) {
+    return;
+  }
+  if (!payload || typeof payload !== "object") {
+    const placeholder = document.createElement("div");
+    placeholder.className = "placeholder";
+    placeholder.textContent = "Contenuto backup non valido.";
+    inspectSummary.appendChild(placeholder);
+    return;
+  }
+
+  const keys = Object.keys(payload);
+  if (keys.length === 0) {
+    const placeholder = document.createElement("div");
+    placeholder.className = "placeholder";
+    placeholder.textContent = "Backup vuoto.";
+    inspectSummary.appendChild(placeholder);
+    return;
+  }
+
+  const knownKeys = IMPORT_KEYS.filter((key) => keys.includes(key));
+  const otherKeys = keys.filter((key) => !knownKeys.includes(key)).sort();
+  const orderedKeys = [...knownKeys, ...otherKeys];
+
+  orderedKeys.forEach((key) => {
+    const row = document.createElement("div");
+    row.className = "inspect-summary-row";
+    const label = document.createElement("span");
+    label.textContent = key;
+    const count = document.createElement("span");
+    count.textContent = String(countPayloadItems(payload[key]));
+    row.appendChild(label);
+    row.appendChild(count);
+    inspectSummary.appendChild(row);
+  });
 }
 
 function startBackupsAutoRefresh() {
@@ -861,9 +1005,9 @@ async function handleDownloadBackup(timestamp, label, button) {
     const link = document.createElement("a");
     const safePart = sanitizeFilenamePart(label || timestamp);
     const filenameBase = safePart || "backup_download";
-    const filename = filenameBase.toLowerCase().endsWith(".zip")
+    const filename = filenameBase.toLowerCase().endsWith(".json")
       ? filenameBase
-      : `${filenameBase}.zip`;
+      : `${filenameBase}.json`;
     link.href = downloadUrl;
     link.download = filename;
     document.body.appendChild(link);
@@ -873,6 +1017,68 @@ async function handleDownloadBackup(timestamp, label, button) {
     setStatus(backupsStatus, "Backup scaricato. Controlla la cartella Download.");
   } catch (error) {
     setStatus(backupsStatus, `Errore download backup: ${error.message}`, true);
+  } finally {
+    if (button) {
+      button.disabled = false;
+    }
+    updateAuthState();
+  }
+}
+
+async function handleInspectBackup(backup, button) {
+  const baseUrl = normalizeBaseUrl(baseUrlInput.value);
+  if (!baseUrl) {
+    setStatus(backupsStatus, "Inserisci un base URL valido.", true);
+    return;
+  }
+
+  if (!accessToken) {
+    setStatus(backupsStatus, "Fai login prima di scaricare.", true);
+    return;
+  }
+
+  const timestamp = backup?.timestamp;
+  if (!timestamp) {
+    setStatus(backupsStatus, "Timestamp backup non valido.", true);
+    return;
+  }
+
+  if (button) {
+    button.disabled = true;
+  }
+  setStatus(backupsStatus, `Lettura backup ${backup?.label || timestamp}...`, false);
+  resetInspectModalBody();
+  renderInspectMeta(backup);
+  openInspectModal(backup?.label || "Dettagli backup");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/v2/backups/${encodeURIComponent(timestamp)}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    renderInspectCameras(payload);
+    renderInspectSummary(payload);
+    setStatus(backupsStatus, "Dettagli backup caricati.");
+  } catch (error) {
+    if (inspectCameras) {
+      inspectCameras.innerHTML = "";
+      const placeholder = document.createElement("div");
+      placeholder.className = "placeholder";
+      placeholder.textContent = "Impossibile leggere il contenuto del backup.";
+      inspectCameras.appendChild(placeholder);
+    }
+    if (inspectSummary) {
+      inspectSummary.innerHTML = "";
+    }
+    setStatus(backupsStatus, `Errore lettura backup: ${error.message}`, true);
   } finally {
     if (button) {
       button.disabled = false;
@@ -1441,6 +1647,16 @@ resetBtn.addEventListener("click", handleReset);
 refreshBackupsBtn.addEventListener("click", handleFetchBackups);
 configFileInput.addEventListener("change", handleConfigFile);
 importBtn.addEventListener("click", handleImport);
+if (inspectModal) {
+  inspectModal.addEventListener("click", (event) => {
+    if (event.target === inspectModal) {
+      closeInspectModal();
+    }
+  });
+}
+if (inspectCloseBtn) {
+  inspectCloseBtn.addEventListener("click", closeInspectModal);
+}
 
 resetAuthServices("Carica gli auth service");
 resetAccessToken();
