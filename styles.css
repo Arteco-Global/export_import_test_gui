@@ -371,6 +371,36 @@ button.primary:not(:disabled):hover {
   gap: 12px;
 }
 
+.recap-section-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+.recap-item {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #12181b;
+  border: 1px solid var(--border);
+  color: var(--ink);
+}
+
+.recap-item-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.recap-item-body {
+  font-size: 13px;
+  color: var(--muted);
+  word-break: break-word;
+}
+
 .association-list {
   display: grid;
   gap: 10px;

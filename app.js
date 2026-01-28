@@ -809,16 +809,211 @@ function renderInspectMeta(backup) {
   inspectMeta.textContent = parts.join(" • ");
 }
 
-function renderInspectCameras(payload) {
-  if (!inspectCameras) {
-    return;
-  }
+function getChannelsList(payload) {
   const channels =
     payload?.CHANNELS ||
     payload?.channels ||
     payload?.root?.CHANNELS ||
     payload?.root?.channels ||
     [];
+  if (Array.isArray(channels)) {
+    return channels;
+  }
+  if (channels && typeof channels === "object") {
+    const cameraServices = channels.cameraServices || channels.camera_services;
+    if (Array.isArray(cameraServices)) {
+      return cameraServices;
+    }
+  }
+  return [];
+}
+
+function getCameraServices(payload) {
+  const channels =
+    payload?.CHANNELS ||
+    payload?.channels ||
+    payload?.root?.CHANNELS ||
+    payload?.root?.channels ||
+    null;
+  if (Array.isArray(channels)) {
+    return channels;
+  }
+  if (channels && typeof channels === "object") {
+    const cameraServices =
+      channels.cameraServices ||
+      channels.camera_services ||
+      channels.services ||
+      channels.items ||
+      [];
+    if (Array.isArray(cameraServices)) {
+      return cameraServices;
+    }
+  }
+  return [];
+}
+
+function getServiceLabel(service, fallback) {
+  const name =
+    service?.name ||
+    service?.serviceName ||
+    service?.cameraServiceName ||
+    service?.label ||
+    service?.title ||
+    service?.descr ||
+    "";
+  const id =
+    service?.id ||
+    service?.guid ||
+    service?.serviceGuid ||
+    service?.serviceId ||
+    "";
+  if (name && id) {
+    return `${name} (${id})`;
+  }
+  return name || id || fallback;
+}
+
+function getCameraList(service) {
+  const camerasValue =
+    service?.cameras ||
+    service?.cameraList ||
+    service?.camera ||
+    service?.channels ||
+    service?.devices ||
+    [];
+  if (Array.isArray(camerasValue)) {
+    return camerasValue.map((item, index) => {
+      if (typeof item === "string" || typeof item === "number") {
+        return String(item);
+      }
+      if (item && typeof item === "object") {
+        return (
+          item.name ||
+          item.label ||
+          item.title ||
+          item.descr ||
+          item.id ||
+          item.guid ||
+          `Camera ${index + 1}`
+        );
+      }
+      return `Camera ${index + 1}`;
+    });
+  }
+  if (camerasValue && typeof camerasValue === "object") {
+    return Object.keys(camerasValue);
+  }
+  return [];
+}
+
+function getMappingList(payload) {
+  const mapping =
+    payload?.MAPPING ||
+    payload?.mapping ||
+    payload?.root?.MAPPING ||
+    payload?.root?.mapping ||
+    null;
+  const services =
+    (Array.isArray(mapping) && mapping) ||
+    mapping?.services ||
+    mapping?.serviceList ||
+    mapping?.items ||
+    [];
+  if (Array.isArray(services)) {
+    return services.map((item, index) => {
+      if (typeof item === "string" || typeof item === "number") {
+        return String(item);
+      }
+      if (item && typeof item === "object") {
+        const name = item.serviceName || item.name || item.label || "";
+        const type = item.serviceType || item.type || "";
+        const guid = item.serviceGuid || item.guid || item.id || "";
+        if (name && type) {
+          return `${name} • ${type}`;
+        }
+        if (name && guid) {
+          return `${name} (${guid})`;
+        }
+        return name || type || guid || `Servizio ${index + 1}`;
+      }
+      return `Servizio ${index + 1}`;
+    });
+  }
+  if (mapping && typeof mapping === "object") {
+    return Object.keys(mapping);
+  }
+  return [];
+}
+
+function renderRecapList(container, payload) {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  if (!payload || typeof payload !== "object") {
+    const placeholder = document.createElement("div");
+    placeholder.className = "placeholder";
+    placeholder.textContent = "Contenuto backup non valido.";
+    container.appendChild(placeholder);
+    return;
+  }
+
+  const cameraServices = getCameraServices(payload);
+  const mappingList = getMappingList(payload);
+
+  const channelsHeader = document.createElement("div");
+  channelsHeader.className = "recap-section-title";
+  channelsHeader.textContent = `CHANNELS • ${cameraServices.length} camera service`;
+  container.appendChild(channelsHeader);
+
+  if (cameraServices.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "placeholder";
+    empty.textContent = "Nessun camera service trovato.";
+    container.appendChild(empty);
+  } else {
+    cameraServices.forEach((service, index) => {
+      const row = document.createElement("div");
+      row.className = "recap-item";
+      const label = document.createElement("div");
+      label.className = "recap-item-title";
+      label.textContent = getServiceLabel(service, `Camera service ${index + 1}`);
+      const cameras = getCameraList(service);
+      const list = document.createElement("div");
+      list.className = "recap-item-body";
+      list.textContent = cameras.length > 0 ? cameras.join(", ") : "Nessuna camera";
+      row.appendChild(label);
+      row.appendChild(list);
+      container.appendChild(row);
+    });
+  }
+
+  const mappingHeader = document.createElement("div");
+  mappingHeader.className = "recap-section-title";
+  mappingHeader.textContent = `MAPPING • ${mappingList.length} servizi`;
+  container.appendChild(mappingHeader);
+
+  if (mappingList.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "placeholder";
+    empty.textContent = "Nessun mapping trovato.";
+    container.appendChild(empty);
+  } else {
+    const mappingRow = document.createElement("div");
+    mappingRow.className = "recap-item";
+    const mappingBody = document.createElement("div");
+    mappingBody.className = "recap-item-body";
+    mappingBody.textContent = mappingList.join(", ");
+    mappingRow.appendChild(mappingBody);
+    container.appendChild(mappingRow);
+  }
+}
+
+function renderInspectCameras(payload) {
+  if (!inspectCameras) {
+    return;
+  }
+  const channels = getChannelsList(payload);
   if (!Array.isArray(channels) || channels.length === 0) {
     const placeholder = document.createElement("div");
     placeholder.className = "placeholder";
@@ -844,7 +1039,20 @@ function renderInspectCameras(payload) {
       item?.channelGuid ||
       "";
     const label = name || id || `Camera ${index + 1}`;
-    row.textContent = id && name ? `${label} (${id})` : label;
+    const camerasValue =
+      item?.cameras ||
+      item?.cameraList ||
+      item?.camera ||
+      item?.channels ||
+      [];
+    const camerasCount = Array.isArray(camerasValue)
+      ? camerasValue.length
+      : camerasValue && typeof camerasValue === "object"
+        ? Object.keys(camerasValue).length
+        : 0;
+    const cameraLabel = `${camerasCount} camer${camerasCount === 1 ? "a" : "e"}`;
+    const baseLabel = id && name ? `${label} (${id})` : label;
+    row.textContent = `${baseLabel} • ${cameraLabel}`;
     inspectCameras.appendChild(row);
   });
 }
@@ -853,38 +1061,7 @@ function renderInspectSummary(payload) {
   if (!inspectSummary) {
     return;
   }
-  if (!payload || typeof payload !== "object") {
-    const placeholder = document.createElement("div");
-    placeholder.className = "placeholder";
-    placeholder.textContent = "Contenuto backup non valido.";
-    inspectSummary.appendChild(placeholder);
-    return;
-  }
-
-  const keys = Object.keys(payload);
-  if (keys.length === 0) {
-    const placeholder = document.createElement("div");
-    placeholder.className = "placeholder";
-    placeholder.textContent = "Backup vuoto.";
-    inspectSummary.appendChild(placeholder);
-    return;
-  }
-
-  const knownKeys = IMPORT_KEYS.filter((key) => keys.includes(key));
-  const otherKeys = keys.filter((key) => !knownKeys.includes(key)).sort();
-  const orderedKeys = [...knownKeys, ...otherKeys];
-
-  orderedKeys.forEach((key) => {
-    const row = document.createElement("div");
-    row.className = "inspect-summary-row";
-    const label = document.createElement("span");
-    label.textContent = key;
-    const count = document.createElement("span");
-    count.textContent = String(countPayloadItems(payload[key]));
-    row.appendChild(label);
-    row.appendChild(count);
-    inspectSummary.appendChild(row);
-  });
+  renderRecapList(inspectSummary, payload);
 }
 
 function startBackupsAutoRefresh() {
@@ -1094,31 +1271,7 @@ function updateImportSummary() {
     return;
   }
 
-  const keysAvailable = IMPORT_KEYS.filter((key) =>
-    Object.prototype.hasOwnProperty.call(loadedPayloadByKey, key)
-  );
-
-  importSummaryList.innerHTML = "";
-  if (keysAvailable.length === 0) {
-    const placeholder = document.createElement("div");
-    placeholder.className = "placeholder";
-    placeholder.textContent = "Nessuna chiave trovata nel config.json.";
-    importSummaryList.appendChild(placeholder);
-    importSummary.classList.remove("hidden");
-    return;
-  }
-
-  keysAvailable.forEach((key) => {
-    const row = document.createElement("div");
-    row.className = "import-summary-item";
-    const label = document.createElement("span");
-    label.textContent = key;
-    const count = document.createElement("span");
-    count.textContent = String(countPayloadItems(loadedPayloadByKey[key]));
-    row.appendChild(label);
-    row.appendChild(count);
-    importSummaryList.appendChild(row);
-  });
+  renderRecapList(importSummaryList, loadedPayloadByKey);
 
   importSummary.classList.remove("hidden");
 }
