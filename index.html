@@ -50,7 +50,7 @@
 
       <section class="card hidden" id="exportSection">
         <h2>Export</h2>
-        <p>Scarica l'export JSON da <span class="mono">/api/v2/export</span> e salvalo dove vuoi.</p>
+        <p>Scarica l'export da <span class="mono">/api/v2/export</span> e salvalo dove vuoi.</p>
         <button id="exportBtn" class="primary" disabled>Scarica export</button>
         <div class="status" id="exportStatus"></div>
       </section>
@@ -107,9 +107,6 @@
               <div class="placeholder">Carica un config.json per selezionare le chiavi.</div>
             </div>
           </div>
-          <div id="importSummary" class="import-summary hidden">
-            <div id="importSummaryList" class="import-summary-list"></div>
-          </div>
           <div id="associationList" class="association-list">
             <div class="placeholder">Carica entrambi i mapping per vedere le associazioni.</div>
           </div>
@@ -120,23 +117,6 @@
         </div>
       </section>
     </main>
-
-    <div id="inspectModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="inspectTitle">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h3 id="inspectTitle">Dettagli backup</h3>
-          <button id="inspectCloseBtn" class="ghost">Chiudi</button>
-        </div>
-        <div id="inspectMeta" class="modal-meta"></div>
-        <div class="modal-section">
-          <h4>Telecamere</h4>
-          <div id="inspectCameras" class="modal-list"></div>
-        </div>
-        <div class="modal-section">
-          <div id="inspectSummary" class="modal-summary"></div>
-        </div>
-      </div>
-    </div>
 
     <script src="app.js"></script>
   </body>
