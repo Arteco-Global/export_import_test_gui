@@ -1547,9 +1547,11 @@ async function handleImport() {
   try {
     const payloadCopy = JSON.parse(JSON.stringify(loadedPayloadByKey));
     const guidMap = new Map(associationSelections);
-    if (payloadCopy.CHANNELS) {
-      applyGuidMapToConfig(payloadCopy.CHANNELS, guidMap);
-    }
+    selectedImportKeys.forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(payloadCopy, key)) {
+        applyGuidMapToConfig(payloadCopy[key], guidMap);
+      }
+    });
 
     const importPayload = {};
     selectedImportKeys.forEach((key) => {
