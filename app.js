@@ -42,11 +42,11 @@ let backupsAutoRefreshTimer = null;
 let backupsAutoRefreshDisabled = false;
 const BACKUPS_AUTO_REFRESH_MS = 60000;
 const BACKUPS_REQUEST_TIMEOUT_MS = 8000;
+const DEFAULT_RESET_SECRET = "HYPERNODE_RESET_6A9K3M2QX7";
 const IMPORT_KEYS = [
   "CHANNELS",
   "MAPPING",
   "SERVER",
-  "CORETRUST",
   "USERS",
   "SNAPSHOTS",
   "RECORDINGS",
@@ -55,6 +55,11 @@ const IMPORT_KEYS = [
   "EXPORTED_AT",
   "GATEWAY_VERSION",
 ];
+const BLOCKED_IMPORT_KEYS = new Set(["CORETRUST"]);
+
+function isImportKeyAllowed(key) {
+  return !BLOCKED_IMPORT_KEYS.has(String(key).toUpperCase());
+}
 
 function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "").trim();
@@ -366,11 +371,7 @@ async function handleReset() {
     return;
   }
 
-  const resetSecret = resetSecretInput.value.trim();
-  if (!resetSecret) {
-    setStatus(resetStatus, "Inserisci il reset secret.", true);
-    return;
-  }
+  const resetSecret = resetSecretInput?.value?.trim() || DEFAULT_RESET_SECRET;
 
   const confirmed = window.confirm("Sei sicuro di voler resettare il server?");
   if (!confirmed) {
@@ -452,6 +453,9 @@ function extractConfigPayload(payload) {
 
   const payloadByKey = {};
   IMPORT_KEYS.forEach((key) => {
+    if (!isImportKeyAllowed(key)) {
+      return;
+    }
     const value = readPayloadKey(payload, key);
     if (value !== undefined) {
       payloadByKey[key] = value;
@@ -477,8 +481,8 @@ function renderImportKeyOptions(payloadByKey) {
     }
   });
 
-  const keysAvailable = IMPORT_KEYS.filter((key) =>
-    Object.prototype.hasOwnProperty.call(payloadByKey, key)
+  const keysAvailable = IMPORT_KEYS.filter(
+    (key) => isImportKeyAllowed(key) && Object.prototype.hasOwnProperty.call(payloadByKey, key)
   );
 
   if (keysAvailable.length === 0) {
@@ -1548,6 +1552,9 @@ async function handleImport() {
     const payloadCopy = JSON.parse(JSON.stringify(loadedPayloadByKey));
     const guidMap = new Map(associationSelections);
     selectedImportKeys.forEach((key) => {
+      if (!isImportKeyAllowed(key)) {
+        return;
+      }
       if (Object.prototype.hasOwnProperty.call(payloadCopy, key)) {
         applyGuidMapToConfig(payloadCopy[key], guidMap);
       }
@@ -1555,6 +1562,9 @@ async function handleImport() {
 
     const importPayload = {};
     selectedImportKeys.forEach((key) => {
+      if (!isImportKeyAllowed(key)) {
+        return;
+      }
       if (Object.prototype.hasOwnProperty.call(payloadCopy, key)) {
         importPayload[key] = payloadCopy[key];
       }

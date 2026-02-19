@@ -73,17 +73,6 @@
         <div class="status" id="backupsStatus"></div>
       </section>
 
-      <section class="card hidden" id="resetSection">
-        <h2>Reset server</h2>
-        <p>Ripristina il server allo stato iniziale</p>
-        <div class="field">
-          <label for="resetSecret">Reset secret</label>
-          <input id="resetSecret" type="password" placeholder="HYPERNODE_RESET_6A9K3M2QX7" value="HYPERNODE_RESET_6A9K3M2QX7" />
-        </div>
-        <button id="resetBtn" class="primary">Reset server</button>
-        <div class="status" id="resetStatus"></div>
-      </section>
-
       <section class="card hidden" id="importSection">
         <h2>Import</h2>
         <p>Carica il <span class="mono">config.json</span> con chiavi <span class="mono">CHANNELS</span> e <span class="mono">MAPPING</span>. Puoi attivare o disattivare <span class="mono">SNAPSHOTS</span>, <span class="mono">RECORDINGS</span>, <span class="mono">EVENTS</span> e le altre sezioni disponibili.</p>
@@ -115,6 +104,13 @@
           <button id="importBtn" class="primary" disabled>Invia import</button>
           <div class="status" id="importStatus"></div>
         </div>
+      </section>
+
+      <section class="card hidden" id="resetSection">
+        <h2>Reset server</h2>
+        <p><strong>ATTENZIONE:</strong> il reset cancella definitivamente TUTTE le REC presenti sul server.</p>
+        <button id="resetBtn" class="primary">Reset server</button>
+        <div class="status" id="resetStatus"></div>
       </section>
     </main>
 

@@ -59,6 +59,23 @@ body {
   margin-top: 0;
 }
 
+#resetSection {
+  background: #2a1111;
+  border-color: #4b1f1f;
+}
+
+#resetSection h2 {
+  color: #ffb6b6;
+}
+
+#resetSection .primary {
+  background: #8f2525;
+}
+
+#resetSection .primary:not(:disabled):hover {
+  background: #6f1c1c;
+}
+
 .field {
   display: grid;
   gap: 6px;
