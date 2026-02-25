@@ -205,53 +205,60 @@ function extractToken(payload) {
 }
 
 function normalizeSites(payload) {
-  const list =
-    payload?.sites ||
-    payload?.data?.sites ||
-    payload?.root?.sites ||
-    (Array.isArray(payload?.data) ? payload?.data : null) ||
-    (Array.isArray(payload) ? payload : null) ||
-    [];
+  const containers = [];
+  const rootList = [
+    payload?.sites,
+    payload?.data?.sites,
+    payload?.root?.sites,
+    payload?.server_in_site,
+    payload?.data?.server_in_site,
+    payload?.root?.server_in_site,
+    Array.isArray(payload?.data) ? payload?.data : null,
+    Array.isArray(payload) ? payload : null,
+  ].filter((entry) => Array.isArray(entry));
 
-  if (!Array.isArray(list)) {
-    return [];
-  }
+  rootList.forEach((entry) => {
+    containers.push(...entry);
+  });
 
-  return list
-    .map((item, index) => {
+  const result = [];
+  containers.forEach((item, index) => {
+    const serverList = Array.isArray(item?.server_in_site) ? item.server_in_site : [item];
+    serverList.forEach((serverItem, serverIndex) => {
       const serial =
         String(
-          item?.serial ||
+          serverItem?.serialno ||
+            serverItem?.serial ||
+            serverItem?.seriale ||
+            serverItem?.siteSerial ||
+            serverItem?.site_serial ||
+            serverItem?.serverSerial ||
+            item?.serialno ||
+            item?.serial ||
             item?.seriale ||
             item?.siteSerial ||
             item?.site_serial ||
-            item?.serverSerial ||
-            item?.id ||
-            item?.guid ||
             ""
-        ).trim() || `SITE-${index + 1}`;
+        ).trim() || `SITE-${index + 1}-${serverIndex + 1}`;
 
-      const baseUrl = normalizeBaseUrl(
-        String(
-          item?.baseUrl ||
-            item?.url ||
-            item?.siteUrl ||
-            item?.site_url ||
-            item?.serverUrl ||
-            item?.server_url ||
-            item?.endpoint ||
-            ""
-        )
-      );
-
-      return {
+      result.push({
         serial,
-        baseUrl,
-        token: extractToken(item),
-        raw: item,
-      };
-    })
-    .filter((item) => item.serial !== "");
+        sitePort: String(serverItem?.site_port || item?.site_port || "443").trim() || "443",
+        siteLanPort: String(serverItem?.site_lan_port || item?.site_lan_port || "").trim(),
+        token: extractToken(serverItem) || extractToken(item),
+        raw: serverItem,
+      });
+    });
+  });
+
+  const uniqBySerial = new Map();
+  result.forEach((site) => {
+    if (!uniqBySerial.has(site.serial)) {
+      uniqBySerial.set(site.serial, site);
+    }
+  });
+
+  return Array.from(uniqBySerial.values());
 }
 
 function renderSites(siteItems) {
@@ -277,7 +284,7 @@ function renderSites(siteItems) {
     }
     button.innerHTML = `
       <div class="site-serial">${escapeHtml(site.serial)}</div>
-      <div class="site-url">${escapeHtml(site.baseUrl || "URL non disponibile")}</div>
+      <div class="site-url">serialno: ${escapeHtml(site.serial)}</div>
     `;
     button.addEventListener("click", () => {
       handleSiteLogin(site);
@@ -286,14 +293,59 @@ function renderSites(siteItems) {
   });
 }
 
+function buildOmniaBaseUrl(serial, domainType, port) {
+  const normalizedPort = String(port || "").trim();
+  const includePort = normalizedPort !== "" && normalizedPort !== "443";
+  return `https://${serial}.${domainType}.omniaweb.cloud${includePort ? `:${normalizedPort}` : ""}`;
+}
+
+async function checkReachability(baseUrl) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 4000);
+  try {
+    const response = await proxiedFetch(`${baseUrl}/api/v2/server/auth-services`, {
+      method: "GET",
+      signal: controller.signal,
+    });
+    return !!response;
+  } catch (_error) {
+    return false;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function resolveServerBaseUrl(site) {
+  const lanUrl = buildOmniaBaseUrl(site.serial, "lan", site.siteLanPort || site.sitePort);
+  const myUrl = buildOmniaBaseUrl(site.serial, "my", site.sitePort);
+
+  const [lanReachable, myReachable] = await Promise.all([
+    checkReachability(lanUrl),
+    checkReachability(myUrl),
+  ]);
+
+  if (lanReachable) {
+    return { baseUrl: lanUrl, mode: "lan" };
+  }
+  if (myReachable) {
+    return { baseUrl: myUrl, mode: "my" };
+  }
+
+  throw new Error("Server non raggiungibile su LAN o remoto.");
+}
+
 async function handleSiteLogin(site) {
-  const baseUrl = normalizeBaseUrl(site.baseUrl || "");
-  if (!baseUrl) {
-    setStatus(loginStatus, `Il sito ${site.serial} non ha un URL valido.`, true);
+  resetAccessToken();
+  setStatus(loginStatus, `Check reachability per ${site.serial} in corso...`);
+  let resolved;
+  try {
+    resolved = await resolveServerBaseUrl(site);
+  } catch (error) {
+    setStatus(loginStatus, `Errore reachability ${site.serial}: ${error.message}`, true);
     return;
   }
 
-  resetAccessToken();
+  const baseUrl = resolved.baseUrl;
   baseUrlInput.value = baseUrl;
   selectedSiteSerial = site.serial;
   renderSites(sites);
@@ -301,7 +353,7 @@ async function handleSiteLogin(site) {
   const siteToken = extractToken(site.raw) || site.token;
   if (siteToken) {
     accessToken = siteToken;
-    setStatus(loginStatus, `Login server ${site.serial} completato.`);
+    setStatus(loginStatus, `Login server ${site.serial} completato via ${resolved.mode}.`);
     backupsAutoRefreshDisabled = false;
     startBackupsAutoRefresh();
     handleFetchBackups();
@@ -314,7 +366,7 @@ async function handleSiteLogin(site) {
     return;
   }
 
-  setStatus(loginStatus, `Login al server ${site.serial} in corso...`);
+  setStatus(loginStatus, `Login al server ${site.serial} in corso via ${resolved.mode}...`);
 
   try {
     const response = await proxiedFetch(`${baseUrl}/api/v2/server/login-sso`, {
@@ -325,6 +377,7 @@ async function handleSiteLogin(site) {
       },
       body: JSON.stringify({
         siteSerial: site.serial,
+        serialno: site.serial,
       }),
     });
 
@@ -339,7 +392,7 @@ async function handleSiteLogin(site) {
     }
 
     accessToken = token;
-    setStatus(loginStatus, `Login server ${site.serial} completato.`);
+    setStatus(loginStatus, `Login server ${site.serial} completato via ${resolved.mode}.`);
     backupsAutoRefreshDisabled = false;
     startBackupsAutoRefresh();
     handleFetchBackups();
