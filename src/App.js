@@ -11,52 +11,48 @@ function App() {
     <main className="app">
       <header className="header">
         <h1>Import / Export</h1>
-        <p>GUI minimale per scaricare l'export o aggiornare un config.json.</p>
+        <p>Login su Arteco Global, selezione sito per seriale e operazioni sul server selezionato.</p>
       </header>
 
-      <section className="card" id="loginSection">
-        <h2>Base URL</h2>
-        <div className="field">
-          <label htmlFor="baseUrl">Base URL</label>
-          <input
-            id="baseUrl"
-            type="text"
-            placeholder="https://VXXXX.lan.omniaweb.cloud"
-            defaultValue="https://VXXXX.lan.omniaweb.cloud"
-          />
-        </div>
-        <div className="grid">
-          <div className="field">
-            <label htmlFor="username">Username</label>
-            <input id="username" type="text" placeholder="admin" defaultValue="admin" />
+      <section className="workspace">
+        <aside className="card sidebar hidden" id="sitesSection">
+          <h2>Siti Arteco</h2>
+          <p>Elenco siti disponibili (seriale). Clicca per fare login al server.</p>
+          <div id="siteList" className="site-list">
+            <div className="placeholder">Fai login ad Arteco Global per caricare i siti.</div>
           </div>
-          <div className="field">
-            <label htmlFor="password">Password</label>
-            <input id="password" type="password" placeholder="••••••" defaultValue="admin" />
-          </div>
-        </div>
-        <div className="field">
-          <label htmlFor="authServiceSelect">Auth service</label>
-          <select id="authServiceSelect" disabled>
-            <option value="">Carica gli auth service</option>
-          </select>
-        </div>
-        <div className="grid">
-          <button id="loginBtn" className="primary" disabled>
-            Login
-          </button>
-        </div>
-        <div id="loginSpinner" className="login-spinner hidden">
-          <div className="spinner" aria-hidden="true"></div>
-          <div>Login in corso...</div>
-        </div>
-        <div className="status" id="loginStatus"></div>
-        <div className="hint" id="baseUrlHint">
-          Login obbligatorio: il token ottenuto viene usato per reset, mapping, import ed export.
-        </div>
-      </section>
+        </aside>
 
-      <section className="card hidden" id="exportSection">
+        <div className="content">
+          <section className="card" id="loginSection">
+            <h2>Login Arteco Global</h2>
+            <div className="grid">
+              <div className="field">
+                <label htmlFor="username">Email</label>
+                <input id="username" type="text" placeholder="name@example.com" />
+              </div>
+              <div className="field">
+                <label htmlFor="password">Password</label>
+                <input id="password" type="password" placeholder="••••••" />
+              </div>
+            </div>
+            <div className="grid">
+              <button id="loginBtn" className="primary" disabled>
+                Login Arteco Global
+              </button>
+            </div>
+            <div id="loginSpinner" className="login-spinner hidden">
+              <div className="spinner" aria-hidden="true"></div>
+              <div>Login in corso...</div>
+            </div>
+            <div className="status" id="loginStatus"></div>
+            <div className="hint">
+              Dopo il login vedrai i siti a sinistra. Selezionane uno per autenticarti sul server.
+            </div>
+            <input id="baseUrl" type="hidden" defaultValue="" />
+          </section>
+
+          <section className="card hidden" id="exportSection">
         <h2>Export</h2>
         <p>
           Scarica l'export da <span className="mono">/api/v2/export</span> e salvalo dove vuoi.
@@ -65,9 +61,9 @@ function App() {
           Scarica export
         </button>
         <div className="status" id="exportStatus"></div>
-      </section>
+          </section>
 
-      <section className="card hidden" id="backupsSection">
+          <section className="card hidden" id="backupsSection">
         <h2>Backups</h2>
         <p>
           Elenco dei backup presenti su <span className="mono">/api/v2/backups</span>.
@@ -89,9 +85,9 @@ function App() {
           </div>
         </details>
         <div className="status" id="backupsStatus"></div>
-      </section>
+          </section>
 
-      <section className="card hidden" id="importSection">
+          <section className="card hidden" id="importSection">
         <h2>Import</h2>
         <p>
           Carica il <span className="mono">config.json</span> con chiavi <span className="mono">CHANNELS</span> e{" "}
@@ -128,9 +124,9 @@ function App() {
           </button>
           <div className="status" id="importStatus"></div>
         </div>
-      </section>
+          </section>
 
-      <section className="card hidden" id="resetSection">
+          <section className="card hidden" id="resetSection">
         <h2>Reset server</h2>
         <p>
           <strong>ATTENZIONE:</strong> il reset cancella definitivamente TUTTE le REC presenti sul server.
@@ -139,6 +135,8 @@ function App() {
           Reset server
         </button>
         <div className="status" id="resetStatus"></div>
+          </section>
+        </div>
       </section>
     </main>
   );

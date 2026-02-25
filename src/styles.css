@@ -21,11 +21,63 @@ body {
 }
 
 .app {
-  max-width: 880px;
+  max-width: 1200px;
   margin: 32px auto 64px;
   padding: 0 20px;
   display: grid;
   gap: 20px;
+}
+
+.workspace {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 320px minmax(0, 1fr);
+  align-items: start;
+}
+
+.content {
+  display: grid;
+  gap: 20px;
+}
+
+.sidebar {
+  position: sticky;
+  top: 20px;
+}
+
+.site-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.site-item {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: #131a1e;
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.site-item:hover {
+  border-color: #435159;
+}
+
+.site-item.active {
+  border-color: var(--accent);
+  background: #182228;
+}
+
+.site-serial {
+  font-weight: 700;
+}
+
+.site-url {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .header {
@@ -159,6 +211,16 @@ button.primary:not(:disabled):hover {
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+  }
 }
 
 .associations {

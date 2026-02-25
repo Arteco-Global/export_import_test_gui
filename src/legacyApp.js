@@ -10,10 +10,11 @@ export default function initLegacyApp() {
 const baseUrlInput = document.getElementById("baseUrl");
 const usernameInput = document.getElementById("username");
 const passwordInput = document.getElementById("password");
-const authServiceSelect = document.getElementById("authServiceSelect");
 const loginBtn = document.getElementById("loginBtn");
 const loginStatus = document.getElementById("loginStatus");
 const loginSpinner = document.getElementById("loginSpinner");
+const sitesSection = document.getElementById("sitesSection");
+const siteList = document.getElementById("siteList");
 const importBtn = document.getElementById("importBtn");
 const importStatus = document.getElementById("importStatus");
 const configFileInput = document.getElementById("configFile");
@@ -46,11 +47,14 @@ let loadedPayloadByKey = {};
 const associationSelections = new Map();
 const selectedImportKeys = new Set();
 let accessToken = "";
-let lastBaseUrl = "";
+let globalSessionToken = "";
+let sites = [];
+let selectedSiteSerial = "";
 let backupsAutoRefreshTimer = null;
 let backupsAutoRefreshDisabled = false;
 const BACKUPS_AUTO_REFRESH_MS = 60000;
 const BACKUPS_REQUEST_TIMEOUT_MS = 8000;
+const ARTECO_GLOBAL_URL = "https://sso.usee.cloud";
 const DEFAULT_RESET_SECRET = "HYPERNODE_RESET_6A9K3M2QX7";
 const IMPORT_KEYS = [
   "CHANNELS",
@@ -72,6 +76,41 @@ function isImportKeyAllowed(key) {
 
 function normalizeBaseUrl(value) {
   return value.replace(/\/+$/, "").trim();
+}
+
+function buildSsoLoginEndpoint() {
+  const normalized = normalizeBaseUrl(ARTECO_GLOBAL_URL);
+  if (/\/api\/v2\/server\/login-sso$/i.test(normalized)) {
+    return normalized;
+  }
+  return `${normalized}/api/v2/server/login-sso`;
+}
+
+async function proxiedFetch(url, options = {}) {
+  const isDev = window.location.hostname === "localhost";
+  if (!isDev) {
+    return fetch(url, options);
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url, window.location.origin);
+  } catch (_error) {
+    return fetch(url, options);
+  }
+
+  if (parsedUrl.origin === window.location.origin) {
+    return fetch(url, options);
+  }
+
+  const headers = new Headers(options.headers || {});
+  headers.set("x-proxy-target", parsedUrl.origin);
+  headers.set("x-proxy-path", `${parsedUrl.pathname}${parsedUrl.search}`);
+
+  return fetch("/__proxy", {
+    ...options,
+    headers,
+  });
 }
 
 function setStatus(el, message, isError = false) {
@@ -110,14 +149,16 @@ function updateExportState() {
 }
 
 function updateAuthState() {
-  const baseUrlReady = normalizeBaseUrl(baseUrlInput.value) !== "";
   const credsReady = usernameInput.value.trim() !== "" && passwordInput.value !== "";
+  const baseUrlReady = normalizeBaseUrl(baseUrlInput.value) !== "";
   const tokenReady = accessToken !== "";
 
-  authServiceSelect.disabled = authServices.length <= 1;
-  loginBtn.disabled = !(baseUrlReady && credsReady);
+  loginBtn.disabled = !credsReady;
   resetBtn.disabled = !(baseUrlReady && tokenReady);
   refreshBackupsBtn.disabled = !(baseUrlReady && tokenReady);
+  if (sitesSection) {
+    sitesSection.classList.toggle("hidden", sites.length === 0);
+  }
 
   exportSection.classList.toggle("hidden", !tokenReady);
   backupsSection.classList.toggle("hidden", !tokenReady);
@@ -128,13 +169,16 @@ function updateAuthState() {
   updateExportState();
 }
 
-function resetAuthServices(message) {
-  authServices = [];
-  authServiceSelect.innerHTML = "";
-  const option = document.createElement("option");
-  option.value = "";
-  option.textContent = message || "Carica gli auth service";
-  authServiceSelect.appendChild(option);
+function resetSites(message) {
+  sites = [];
+  selectedSiteSerial = "";
+  if (siteList) {
+    siteList.innerHTML = "";
+    const placeholder = document.createElement("div");
+    placeholder.className = "placeholder";
+    placeholder.textContent = message || "Nessun sito disponibile.";
+    siteList.appendChild(placeholder);
+  }
   updateAuthState();
 }
 
@@ -149,12 +193,24 @@ function resetAccessToken(message) {
   updateAuthState();
 }
 
-function normalizeAuthServices(payload) {
+function extractToken(payload) {
+  return (
+    payload?.root?.access_token ||
+    payload?.access_token ||
+    payload?.root?.accessToken ||
+    payload?.accessToken ||
+    payload?.token ||
+    ""
+  );
+}
+
+function normalizeSites(payload) {
   const list =
-    (Array.isArray(payload) && payload) ||
-    payload?.authServices ||
-    payload?.data ||
-    payload?.root?.authServices ||
+    payload?.sites ||
+    payload?.data?.sites ||
+    payload?.root?.sites ||
+    (Array.isArray(payload?.data) ? payload?.data : null) ||
+    (Array.isArray(payload) ? payload : null) ||
     [];
 
   if (!Array.isArray(list)) {
@@ -162,55 +218,114 @@ function normalizeAuthServices(payload) {
   }
 
   return list
-    .map((item) => ({
-      guid:
-        item?.id ||
-        item?.guid ||
-        item?.authServiceGuid ||
-        item?.serviceGuid ||
-        "",
-      name:
-        item?.name ||
-        item?.authServiceName ||
-        item?.serviceName ||
-        item?.descr ||
-        "",
-    }))
-    .filter((item) => typeof item.guid === "string" && item.guid.trim() !== "");
+    .map((item, index) => {
+      const serial =
+        String(
+          item?.serial ||
+            item?.seriale ||
+            item?.siteSerial ||
+            item?.site_serial ||
+            item?.serverSerial ||
+            item?.id ||
+            item?.guid ||
+            ""
+        ).trim() || `SITE-${index + 1}`;
+
+      const baseUrl = normalizeBaseUrl(
+        String(
+          item?.baseUrl ||
+            item?.url ||
+            item?.siteUrl ||
+            item?.site_url ||
+            item?.serverUrl ||
+            item?.server_url ||
+            item?.endpoint ||
+            ""
+        )
+      );
+
+      return {
+        serial,
+        baseUrl,
+        token: extractToken(item),
+        raw: item,
+      };
+    })
+    .filter((item) => item.serial !== "");
 }
 
-function renderAuthServices(services) {
-  authServiceSelect.innerHTML = "";
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "Seleziona auth service";
-  authServiceSelect.appendChild(placeholder);
+function renderSites(siteItems) {
+  if (!siteList) {
+    return;
+  }
 
-  services.forEach((service) => {
-    const option = document.createElement("option");
-    option.value = service.guid;
-    option.textContent = service.name ? `${service.guid} - ${service.name}` : service.guid;
-    authServiceSelect.appendChild(option);
+  siteList.innerHTML = "";
+  if (siteItems.length === 0) {
+    const placeholder = document.createElement("div");
+    placeholder.className = "placeholder";
+    placeholder.textContent = "Nessun sito disponibile.";
+    siteList.appendChild(placeholder);
+    return;
+  }
+
+  siteItems.forEach((site) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "site-item";
+    if (site.serial === selectedSiteSerial) {
+      button.classList.add("active");
+    }
+    button.innerHTML = `
+      <div class="site-serial">${escapeHtml(site.serial)}</div>
+      <div class="site-url">${escapeHtml(site.baseUrl || "URL non disponibile")}</div>
+    `;
+    button.addEventListener("click", () => {
+      handleSiteLogin(site);
+    });
+    siteList.appendChild(button);
   });
-
-  if (services.length > 0) {
-    authServiceSelect.value = services[0].guid;
-  }
 }
 
-async function loadAuthServices() {
-  const baseUrl = normalizeBaseUrl(baseUrlInput.value);
-
+async function handleSiteLogin(site) {
+  const baseUrl = normalizeBaseUrl(site.baseUrl || "");
   if (!baseUrl) {
-    setStatus(loginStatus, "Inserisci un base URL valido.", true);
-    return [];
+    setStatus(loginStatus, `Il sito ${site.serial} non ha un URL valido.`, true);
+    return;
   }
 
-  setStatus(loginStatus, "Caricamento auth service...", false);
+  resetAccessToken();
+  baseUrlInput.value = baseUrl;
+  selectedSiteSerial = site.serial;
+  renderSites(sites);
+
+  const siteToken = extractToken(site.raw) || site.token;
+  if (siteToken) {
+    accessToken = siteToken;
+    setStatus(loginStatus, `Login server ${site.serial} completato.`);
+    backupsAutoRefreshDisabled = false;
+    startBackupsAutoRefresh();
+    handleFetchBackups();
+    updateAuthState();
+    return;
+  }
+
+  if (!globalSessionToken) {
+    setStatus(loginStatus, "Sessione Arteco Global non valida. Rifai il login.", true);
+    return;
+  }
+
+  setStatus(loginStatus, `Login al server ${site.serial} in corso...`);
 
   try {
-    const response = await fetch(`${baseUrl}/api/v2/server/auth-services`, {
-      method: "GET",
+    const response = await proxiedFetch(`${baseUrl}/api/v2/server/login-sso`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${globalSessionToken}`,
+      },
+      body: JSON.stringify({
+        siteSerial: site.serial,
+      }),
     });
 
     if (!response.ok) {
@@ -218,105 +333,75 @@ async function loadAuthServices() {
     }
 
     const payload = await response.json().catch(() => ({}));
-    const services = normalizeAuthServices(payload);
-
-    if (services.length === 0) {
-      resetAuthServices("Nessun auth service trovato");
-      setStatus(loginStatus, "Nessun auth service disponibile.", true);
-      return [];
+    const token = extractToken(payload);
+    if (!token) {
+      throw new Error("Access token server non trovato nella risposta SSO.");
     }
 
-    authServices = services;
-    renderAuthServices(services);
-    setStatus(loginStatus, "Auth service caricati.");
-    return services;
+    accessToken = token;
+    setStatus(loginStatus, `Login server ${site.serial} completato.`);
+    backupsAutoRefreshDisabled = false;
+    startBackupsAutoRefresh();
+    handleFetchBackups();
   } catch (error) {
-    resetAuthServices("Carica gli auth service");
-    setStatus(loginStatus, `Errore auth service: ${error.message}`, true);
-    return [];
+    accessToken = "";
+    setStatus(loginStatus, `Errore login server ${site.serial}: ${error.message}`, true);
   } finally {
     updateAuthState();
   }
 }
 
-async function performLogin(authGuid, baseUrl, username, password) {
-  const response = await fetch(`${baseUrl}/api/v2/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      username,
-      password,
-      authServiceGuid: authGuid,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Errore HTTP ${response.status}`);
-  }
-
-  const payload = await response.json().catch(() => null);
-  const token =
-    payload?.root?.access_token ||
-    payload?.access_token ||
-    payload?.root?.accessToken ||
-    "";
-
-  if (!token) {
-    throw new Error("Access token non trovato.");
-  }
-
-  accessToken = token;
-  setStatus(loginStatus, "Login OK.");
-  backupsAutoRefreshDisabled = false;
-  startBackupsAutoRefresh();
-  handleFetchBackups();
-}
-
 async function handleLogin() {
-  const baseUrl = normalizeBaseUrl(baseUrlInput.value);
+  const globalUrl = normalizeBaseUrl(ARTECO_GLOBAL_URL);
   const username = usernameInput.value.trim();
   const password = passwordInput.value;
 
-  if (!baseUrl) {
-    setStatus(loginStatus, "Inserisci un base URL valido.", true);
-    return;
-  }
-
   if (!username || !password) {
-    setStatus(loginStatus, "Inserisci username e password.", true);
+    setStatus(loginStatus, "Inserisci email e password.", true);
     return;
   }
 
   setLoginLoading(true);
   loginBtn.disabled = true;
-  setStatus(loginStatus, "Login in corso...", false);
+  setStatus(loginStatus, "Login Arteco Global in corso...");
 
   try {
-    let services = authServices;
-    if (services.length === 0) {
-      services = await loadAuthServices();
+    resetAccessToken();
+    resetSites("Caricamento siti...");
+
+    const loginEndpoint = buildSsoLoginEndpoint();
+    const response = await proxiedFetch(loginEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_login: username,
+        user_password: password,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`);
     }
 
-    if (services.length === 0) {
+    const payload = await response.json().catch(() => ({}));
+    const siteItems = normalizeSites(payload);
+    if (siteItems.length === 0) {
+      resetSites("Nessun sito trovato.");
+      setStatus(loginStatus, "Login eseguito ma nessun sito disponibile.", true);
       return;
     }
 
-    if (services.length === 1) {
-      authServiceSelect.value = services[0].guid;
-    }
-
-    const authGuid = authServiceSelect.value;
-    if (services.length > 1 && !authGuid) {
-      setStatus(loginStatus, "Seleziona un auth service.", true);
-      return;
-    }
-
-    await performLogin(authGuid, baseUrl, username, password);
+    globalSessionToken = extractToken(payload);
+    sites = siteItems;
+    renderSites(siteItems);
+    setStatus(loginStatus, "Login Arteco Global OK. Seleziona un sito a sinistra.");
   } catch (error) {
+    globalSessionToken = "";
     accessToken = "";
-    setStatus(loginStatus, `Errore login: ${error.message}`, true);
+    resetSites("Errore nel caricamento siti.");
+    setStatus(loginStatus, `Errore login Arteco Global: ${error.message}`, true);
   } finally {
     setLoginLoading(false);
     updateAuthState();
@@ -326,12 +411,12 @@ async function handleLogin() {
 async function handleExport() {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (!baseUrl) {
-    setStatus(exportStatus, "Inserisci un base URL valido.", true);
+    setStatus(exportStatus, "Seleziona un sito prima di esportare.", true);
     return;
   }
 
   if (!accessToken) {
-    setStatus(exportStatus, "Fai login prima di esportare.", true);
+    setStatus(exportStatus, "Fai login al sito prima di esportare.", true);
     return;
   }
 
@@ -339,7 +424,7 @@ async function handleExport() {
   setStatus(exportStatus, "Download in corso...");
 
   try {
-    const response = await fetch(`${baseUrl}/api/v2/export`, {
+    const response = await proxiedFetch(`${baseUrl}/api/v2/export`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -371,12 +456,12 @@ async function handleExport() {
 async function handleReset() {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (!baseUrl) {
-    setStatus(resetStatus, "Inserisci un base URL valido.", true);
+    setStatus(resetStatus, "Seleziona un sito prima di resettare.", true);
     return;
   }
 
   if (!accessToken) {
-    setStatus(resetStatus, "Fai login prima di resettare.", true);
+    setStatus(resetStatus, "Fai login al sito prima di resettare.", true);
     return;
   }
 
@@ -392,7 +477,7 @@ async function handleReset() {
   setStatus(resetStatus, "Reset in corso...", false);
 
   try {
-    const response = await fetch(`${baseUrl}/api/v2/reset`, {
+    const response = await proxiedFetch(`${baseUrl}/api/v2/reset`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -996,7 +1081,7 @@ async function handleFetchBackups(isAutoRefresh = false) {
   }, BACKUPS_REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${baseUrl}/api/v2/backups`, {
+    const response = await proxiedFetch(`${baseUrl}/api/v2/backups`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -1055,7 +1140,7 @@ async function handleDownloadBackup(timestamp, label, button) {
   setStatus(backupsStatus, `Download backup ${label || timestamp}...`, false);
 
   try {
-    const response = await fetch(`${baseUrl}/api/v2/backups/${encodeURIComponent(timestamp)}`, {
+    const response = await proxiedFetch(`${baseUrl}/api/v2/backups/${encodeURIComponent(timestamp)}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -1404,7 +1489,7 @@ async function handleFetchMapping() {
   setStatus(importStatus, "Richiesta mapping attuale...", false);
 
   try {
-    const response = await fetch(`${baseUrl}/api/v2/mapping`, {
+    const response = await proxiedFetch(`${baseUrl}/api/v2/mapping`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -1579,7 +1664,7 @@ async function handleImport() {
       }
     });
 
-    const response = await fetch(`${baseUrl}/api/v2/import`, {
+    const response = await proxiedFetch(`${baseUrl}/api/v2/import`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1611,27 +1696,13 @@ async function handleImport() {
   }
 }
 
-let authServices = [];
-
-function handleBaseUrlChange() {
-  const baseUrl = normalizeBaseUrl(baseUrlInput.value);
-  if (baseUrl !== lastBaseUrl) {
-    lastBaseUrl = baseUrl;
-    resetAccessToken("Login da rifare: base URL cambiato.");
-    resetAuthServices("Carica gli auth service");
-  }
-  updateAuthState();
-}
-
 function handleCredentialChange() {
-  resetAccessToken("Login da rifare: credenziali cambiate.");
+  resetAccessToken("Sessione server resettata: rifai login e seleziona un sito.");
   updateAuthState();
 }
 
-baseUrlInput.addEventListener("input", handleBaseUrlChange);
 usernameInput.addEventListener("input", handleCredentialChange);
 passwordInput.addEventListener("input", handleCredentialChange);
-authServiceSelect.addEventListener("change", updateAuthState);
 loginBtn.addEventListener("click", handleLogin);
 exportBtn.addEventListener("click", handleExport);
 resetBtn.addEventListener("click", handleReset);
@@ -1639,7 +1710,7 @@ refreshBackupsBtn.addEventListener("click", handleFetchBackups);
 configFileInput.addEventListener("change", handleConfigFile);
 importBtn.addEventListener("click", handleImport);
 
-resetAuthServices("Carica gli auth service");
+resetSites("Fai login ad Arteco Global per caricare i siti.");
 resetAccessToken();
 updateAuthState();
 clearAssociationList("Carica il config.json con MAPPING e ottieni quello nuovo.");
