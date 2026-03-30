@@ -104,7 +104,9 @@ function parseArtecoVideoSource(node, index) {
   const vendor = getSourceTypeLabel(sourceType);
   const geoReferences = node.querySelector("GeoReferences");
   const connectionInfo = derivePorts(url, host);
+  const groupId = attrOrEmpty(sourceParams, "groupId");
   const groupName = attrOrEmpty(sourceParams, "groupName");
+  const excludedByGroup = groupId !== "" || groupName !== "";
 
   return {
     artecoId: channelId || `arteco-${index + 1}`,
@@ -120,7 +122,9 @@ function parseArtecoVideoSource(node, index) {
     vendor,
     category: attrOrEmpty(node, "cat"),
     description: name,
+    groupId,
     groupName,
+    excludedByGroup,
     mainStreamFps: attrOrEmpty(mainStream, "fps") || attrOrEmpty(sourceParams, "fps"),
     subStreamFps: attrOrEmpty(subStream, "fps"),
     rawProfile: sourceProfile,
@@ -185,10 +189,15 @@ export function parseArtecoXml(xmlText) {
     }
   });
 
-  return cameras.filter((camera) => String(camera.host || "").trim() !== "");
+  return cameras.filter((camera) => camera.excludedByGroup || String(camera.host || "").trim() !== "");
 }
 
 function buildArtecoCameraDetails(camera) {
+  if (camera.excludedByGroup) {
+    const groupLabel = camera.groupName || camera.groupId || "NVR";
+    return `Esclusa dall'import: gruppo ${groupLabel}`;
+  }
+
   const parts = [
     camera.vendor,
     camera.host || camera.url || "endpoint non disponibile",
@@ -561,7 +570,9 @@ function getArtecoTargetServicesFromMapping(mapping) {
 }
 
 function getSelectedArtecoCameras() {
-  return state.artecoCameras.filter((camera) => state.artecoSelectedCameraIds.has(camera.artecoId));
+  return state.artecoCameras.filter(
+    (camera) => !camera.excludedByGroup && state.artecoSelectedCameraIds.has(camera.artecoId)
+  );
 }
 
 function getSelectedTargetService() {
