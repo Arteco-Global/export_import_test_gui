@@ -508,6 +508,12 @@ button.primary:not(:disabled):hover {
   border: 1px solid var(--border);
 }
 
+.arteco-camera-row.is-excluded {
+  background: #17191b;
+  border-color: #3b4348;
+  opacity: 0.72;
+}
+
 .arteco-camera-row input[type="checkbox"] {
   margin-top: 3px;
 }
@@ -562,6 +568,11 @@ button.primary:not(:disabled):hover {
 .arteco-camera-badge.is-disabled {
   background: rgba(165, 111, 111, 0.16);
   color: #e0aaaa;
+}
+
+.arteco-camera-badge.is-excluded {
+  background: rgba(128, 136, 144, 0.18);
+  color: #c8d0d6;
 }
 
 @keyframes spin {
