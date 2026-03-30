@@ -7889,7 +7889,7 @@
   <!--
   General settings for database management-->
   <email from="arteco@aruba.it">
-    <smtp-svr host="smtp.aruba.it" auth="1" username="arteco@aruba.it" password="avs123" port="25" ssl="0"/>
+    <smtp-svr host="smtp.aruba.it" auth="1" username="arteco@aruba.it" password="*****" port="25" ssl="0"/>
   </email>
   <notify>
     <sms ena="0" phone="">

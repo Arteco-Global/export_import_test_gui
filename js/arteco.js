@@ -442,6 +442,124 @@ function renderArtecoTargetServices() {
   }
 }
 
+function createArtecoCameraRow(camera) {
+  const row = document.createElement("label");
+  row.className = `arteco-camera-row${camera.excludedByGroup ? " is-excluded" : ""}`;
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = state.artecoSelectedCameraIds.has(camera.artecoId);
+  checkbox.disabled = camera.excludedByGroup;
+  checkbox.addEventListener("change", () => {
+    if (checkbox.checked) {
+      state.artecoSelectedCameraIds.add(camera.artecoId);
+    } else {
+      state.artecoSelectedCameraIds.delete(camera.artecoId);
+    }
+    refreshArtecoUiState();
+  });
+
+  const body = document.createElement("div");
+  body.className = "arteco-camera-body";
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "arteco-camera-title";
+
+  const title = document.createElement("div");
+  title.textContent = camera.name;
+
+  const badge = document.createElement("span");
+  badge.className = `arteco-camera-badge ${
+    camera.excludedByGroup ? "is-excluded" : camera.enabled ? "is-enabled" : "is-disabled"
+  }`;
+  badge.textContent = camera.excludedByGroup
+    ? "esclusa"
+    : camera.enabled
+      ? "attiva"
+      : "disattiva";
+
+  titleRow.appendChild(title);
+  titleRow.appendChild(badge);
+
+  const meta = document.createElement("div");
+  meta.className = "arteco-camera-meta";
+  meta.textContent = buildArtecoCameraDetails(camera);
+
+  const subMeta = document.createElement("div");
+  subMeta.className = "arteco-camera-submeta";
+  subMeta.textContent = camera.excludedByGroup
+    ? `ID ${camera.artecoId} • gruppo ${camera.groupName || camera.groupId || "n/d"}`
+    : `ID ${camera.artecoId} • idx ${camera.channelIndex || "n/d"} • ${camera.rtspViaTcp ? "RTSP/TCP" : "RTSP/UDP-auto"}`;
+
+  const licenseField = document.createElement("div");
+  licenseField.className = "arteco-camera-license";
+
+  const licenseLabel = document.createElement("span");
+  licenseLabel.textContent = "Licenza";
+
+  const licenseSelect = document.createElement("select");
+  licenseSelect.disabled =
+    camera.excludedByGroup ||
+    !state.artecoSelectedCameraIds.has(camera.artecoId) ||
+    state.availableLicenses.length === 0;
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Seleziona licenza";
+  licenseSelect.appendChild(placeholder);
+
+  const availability = getLicenseAvailabilityMap();
+  const currentLicense = getSelectedCameraLicense(camera.artecoId);
+
+  state.availableLicenses.forEach((license) => {
+    const counters = availability.get(license.type) || { total: license.channels, used: 0 };
+    const remaining = counters.total - counters.used;
+    if (remaining <= 0 && license.type !== currentLicense) {
+      return;
+    }
+
+    const option = document.createElement("option");
+    option.value = license.type;
+    option.textContent = `${license.type} (${Math.max(remaining, 0)} libere / ${license.channels})`;
+    licenseSelect.appendChild(option);
+  });
+
+  licenseSelect.value = currentLicense;
+  licenseSelect.addEventListener("change", () => {
+    const nextValue = licenseSelect.value;
+
+    if (nextValue && !hasLicenseCapacityForCamera(nextValue, camera.artecoId)) {
+      setStatus(
+        artecoImportStatus,
+        `Licenze insufficienti per ${nextValue}. Riduci le assegnazioni o scegli un'altra licenza.`,
+        true
+      );
+      licenseSelect.value = getSelectedCameraLicense(camera.artecoId);
+      return;
+    }
+
+    if (nextValue) {
+      state.artecoLicenseAssignments.set(camera.artecoId, nextValue);
+    } else {
+      state.artecoLicenseAssignments.delete(camera.artecoId);
+    }
+
+    refreshArtecoUiState();
+  });
+
+  licenseField.appendChild(licenseLabel);
+  licenseField.appendChild(licenseSelect);
+
+  body.appendChild(titleRow);
+  body.appendChild(meta);
+  body.appendChild(subMeta);
+  body.appendChild(licenseField);
+  row.appendChild(checkbox);
+  row.appendChild(body);
+
+  return row;
+}
+
 function renderArtecoCameraList() {
   artecoCameraList.innerHTML = "";
 
@@ -453,121 +571,43 @@ function renderArtecoCameraList() {
     return;
   }
 
-  state.artecoCameras.forEach((camera) => {
-    const row = document.createElement("label");
-    row.className = `arteco-camera-row${camera.excludedByGroup ? " is-excluded" : ""}`;
+  const importableCameras = state.artecoCameras.filter((camera) => !camera.excludedByGroup);
+  const excludedCameras = state.artecoCameras.filter((camera) => camera.excludedByGroup);
 
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = state.artecoSelectedCameraIds.has(camera.artecoId);
-    checkbox.disabled = camera.excludedByGroup;
-    checkbox.addEventListener("change", () => {
-      if (checkbox.checked) {
-        state.artecoSelectedCameraIds.add(camera.artecoId);
-      } else {
-        state.artecoSelectedCameraIds.delete(camera.artecoId);
-      }
-      refreshArtecoUiState();
-    });
+  importableCameras.forEach((camera) => {
+    artecoCameraList.appendChild(createArtecoCameraRow(camera));
+  });
+
+  if (excludedCameras.length === 0) {
+    return;
+  }
+
+  const groups = new Map();
+  excludedCameras.forEach((camera) => {
+    const key = camera.groupName || camera.groupId || "Gruppo escluso";
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(camera);
+  });
+
+  groups.forEach((cameras, groupLabel) => {
+    const groupSection = document.createElement("details");
+    groupSection.className = "arteco-group-block";
+
+    const header = document.createElement("summary");
+    header.className = "arteco-group-header";
+    header.textContent = `Al momento l'import degli NVR non e' supportato: ${groupLabel}`;
 
     const body = document.createElement("div");
-    body.className = "arteco-camera-body";
-
-    const titleRow = document.createElement("div");
-    titleRow.className = "arteco-camera-title";
-
-    const title = document.createElement("div");
-    title.textContent = camera.name;
-
-    const badge = document.createElement("span");
-    badge.className = `arteco-camera-badge ${
-      camera.excludedByGroup ? "is-excluded" : camera.enabled ? "is-enabled" : "is-disabled"
-    }`;
-    badge.textContent = camera.excludedByGroup
-      ? "esclusa"
-      : camera.enabled
-        ? "attiva"
-        : "disattiva";
-
-    titleRow.appendChild(title);
-    titleRow.appendChild(badge);
-
-    const meta = document.createElement("div");
-    meta.className = "arteco-camera-meta";
-    meta.textContent = buildArtecoCameraDetails(camera);
-
-    const subMeta = document.createElement("div");
-    subMeta.className = "arteco-camera-submeta";
-    subMeta.textContent = camera.excludedByGroup
-      ? `ID ${camera.artecoId} • gruppo ${camera.groupName || camera.groupId || "n/d"}`
-      : `ID ${camera.artecoId} • idx ${camera.channelIndex || "n/d"} • ${camera.rtspViaTcp ? "RTSP/TCP" : "RTSP/UDP-auto"}`;
-
-    const licenseField = document.createElement("div");
-    licenseField.className = "arteco-camera-license";
-
-    const licenseLabel = document.createElement("span");
-    licenseLabel.textContent = "Licenza";
-
-    const licenseSelect = document.createElement("select");
-    licenseSelect.disabled =
-      camera.excludedByGroup ||
-      !state.artecoSelectedCameraIds.has(camera.artecoId) ||
-      state.availableLicenses.length === 0;
-
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "Seleziona licenza";
-    licenseSelect.appendChild(placeholder);
-
-    const availability = getLicenseAvailabilityMap();
-    const currentLicense = getSelectedCameraLicense(camera.artecoId);
-
-    state.availableLicenses.forEach((license) => {
-      const counters = availability.get(license.type) || { total: license.channels, used: 0 };
-      const remaining = counters.total - counters.used;
-      if (remaining <= 0 && license.type !== currentLicense) {
-        return;
-      }
-
-      const option = document.createElement("option");
-      option.value = license.type;
-      option.textContent = `${license.type} (${Math.max(remaining, 0)} libere / ${license.channels})`;
-      licenseSelect.appendChild(option);
+    body.className = "arteco-group-body";
+    cameras.forEach((camera) => {
+      body.appendChild(createArtecoCameraRow(camera));
     });
 
-    licenseSelect.value = currentLicense;
-    licenseSelect.addEventListener("change", () => {
-      const nextValue = licenseSelect.value;
-
-      if (nextValue && !hasLicenseCapacityForCamera(nextValue, camera.artecoId)) {
-        setStatus(
-          artecoImportStatus,
-          `Licenze insufficienti per ${nextValue}. Riduci le assegnazioni o scegli un'altra licenza.`,
-          true
-        );
-        licenseSelect.value = getSelectedCameraLicense(camera.artecoId);
-        return;
-      }
-
-      if (nextValue) {
-        state.artecoLicenseAssignments.set(camera.artecoId, nextValue);
-      } else {
-        state.artecoLicenseAssignments.delete(camera.artecoId);
-      }
-
-      refreshArtecoUiState();
-    });
-
-    licenseField.appendChild(licenseLabel);
-    licenseField.appendChild(licenseSelect);
-
-    body.appendChild(titleRow);
-    body.appendChild(meta);
-    body.appendChild(subMeta);
-    body.appendChild(licenseField);
-    row.appendChild(checkbox);
-    row.appendChild(body);
-    artecoCameraList.appendChild(row);
+    groupSection.appendChild(header);
+    groupSection.appendChild(body);
+    artecoCameraList.appendChild(groupSection);
   });
 }
 

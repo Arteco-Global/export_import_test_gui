@@ -497,6 +497,37 @@ button.primary:not(:disabled):hover {
   margin: 14px 0 16px;
 }
 
+.arteco-group-block {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed #4a5358;
+  background: #14181b;
+}
+
+.arteco-group-header {
+  list-style: none;
+  cursor: pointer;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #b9c0c6;
+}
+
+.arteco-group-header::-webkit-details-marker {
+  display: none;
+}
+
+.arteco-group-block[open] .arteco-group-header {
+  margin-bottom: 2px;
+}
+
+.arteco-group-body {
+  display: grid;
+  gap: 10px;
+}
+
 .arteco-camera-row {
   display: grid;
   grid-template-columns: auto 1fr;
