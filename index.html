@@ -8,13 +8,8 @@
   </head>
   <body>
     <main class="app">
-      <header class="header">
-        <h1>Import / Export</h1>
-        <p>GUI minimale per scaricare l'export o aggiornare un config.json.</p>
-      </header>
-
       <section class="card" id="loginSection">
-        <h2>Base URL</h2>
+        <h2>Login USS</h2>
         <div class="field">
           <label for="baseUrl">Base URL</label>
           <input id="baseUrl" type="text" placeholder="https://VXXXX.lan.omniaweb.cloud" value="https://VXXXX.lan.omniaweb.cloud" />
@@ -44,9 +39,34 @@
         </div>
         <div class="status" id="loginStatus"></div>
         <div class="hint" id="baseUrlHint">
-          Login obbligatorio: il token ottenuto viene usato per reset, mapping, import ed export.
+          Dopo il login compariranno i due strumenti disponibili.
         </div>
       </section>
+
+      <section class="launcher-card hidden" id="launcherSection">
+        <div class="launcher-header">
+          <h1>Import / Export</h1>
+          <p>Scegli cosa vuoi fare.</p>
+        </div>
+
+        <div class="launcher-actions">
+          <button id="openUssBtn" class="launcher-button" type="button">
+            Import/Export from a USS server
+          </button>
+          <button id="openArtecoBtn" class="launcher-button launcher-button-alt" type="button">
+            Convert from Arteco Server
+          </button>
+        </div>
+      </section>
+
+      <section class="tool-view hidden" id="ussSection">
+        <header class="header">
+          <div>
+            <h1>Import / Export</h1>
+            <p>GUI minimale per scaricare l'export o aggiornare un config.json.</p>
+          </div>
+          <button id="backToHomeFromUssBtn" class="secondary nav-back" type="button">Torna indietro</button>
+        </header>
 
       <section class="card hidden" id="exportSection">
         <h2>Export</h2>
@@ -106,14 +126,71 @@
         </div>
       </section>
 
-      <section class="card hidden" id="resetSection">
-        <h2>Reset server</h2>
-        <p><strong>ATTENZIONE:</strong> il reset cancella definitivamente TUTTE le REC presenti sul server.</p>
-        <button id="resetBtn" class="primary">Reset server</button>
-        <div class="status" id="resetStatus"></div>
+      </section>
+
+      <section class="tool-view hidden" id="artecoSection">
+        <header class="header">
+          <div>
+            <h1>Convert from Arteco Server</h1>
+            <p>Sezione dedicata alla conversione da server Arteco legacy.</p>
+          </div>
+          <button id="backToHomeFromArtecoBtn" class="secondary nav-back" type="button">Torna indietro</button>
+        </header>
+
+        <section class="card">
+          <h2>Arteco XML to USS</h2>
+          <p>Carica un file <span class="mono">BaseConfig.xml</span>, analizza le camere trovate e scegli quali inviare al server USS già autenticato.</p>
+          <div class="hint">Percorso di esempio: <span class="mono">/Users/marcodalprato/GitHub/export_import_test_gui/arteco_backup/BaseConfig.xml</span></div>
+
+          <div class="field">
+            <label for="artecoFileInput">Configurazione Arteco XML</label>
+            <input id="artecoFileInput" type="file" accept=".xml,text/xml,application/xml" />
+          </div>
+
+          <div class="field">
+            <label for="artecoTargetServiceSelect">Servizio target USS</label>
+            <select id="artecoTargetServiceSelect" disabled>
+              <option value="">Fai login e carica un XML per vedere i servizi</option>
+            </select>
+          </div>
+
+          <div class="arteco-license-panel">
+            <h3>Licenze disponibili</h3>
+            <div id="artecoLicenseSummary" class="arteco-license-summary">
+              <div class="placeholder">Fai login per caricare le licenze disponibili.</div>
+            </div>
+            <div class="arteco-license-bulk">
+              <div class="field">
+                <label for="artecoBulkLicenseSelect">Assegnazione massiva</label>
+                <select id="artecoBulkLicenseSelect" disabled>
+                  <option value="">Seleziona licenza</option>
+                </select>
+              </div>
+              <div class="arteco-license-bulk-actions">
+                <button id="artecoApplyLicenseSelectedBtn" class="secondary" type="button">Applica alle selezionate</button>
+                <button id="artecoApplyLicenseMissingBtn" class="ghost" type="button">Applica solo alle senza licenza</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="arteco-toolbar">
+            <button id="artecoSelectEnabledBtn" class="secondary" type="button">Seleziona attive</button>
+            <button id="artecoSelectAllBtn" class="ghost" type="button">Seleziona tutte</button>
+            <button id="artecoSelectNoneBtn" class="ghost" type="button">Deseleziona tutte</button>
+            <div id="artecoSelectedCount" class="backups-count">0 / 0</div>
+          </div>
+
+          <div id="artecoCameraList" class="arteco-camera-list">
+            <div class="placeholder">Carica un file XML per analizzare le camere.</div>
+          </div>
+
+          <button id="artecoImportBtn" class="primary" disabled>Invia camere a USS</button>
+          <div class="status" id="artecoImportStatus"></div>
+          <div class="hint">Il login è condiviso con la sezione USS. L’invio usa <span class="mono">/api/v2/import</span> con un payload <span class="mono">CHANNELS</span> generato dall’XML Arteco.</div>
+        </section>
       </section>
     </main>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

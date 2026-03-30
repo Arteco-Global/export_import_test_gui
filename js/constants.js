@@ -1,0 +1,17 @@
+export const BACKUPS_AUTO_REFRESH_MS = 60000;
+export const BACKUPS_REQUEST_TIMEOUT_MS = 8000;
+
+export const IMPORT_KEYS = [
+  "CHANNELS",
+  "MAPPING",
+  "SERVER",
+  "USERS",
+  "SNAPSHOTS",
+  "RECORDINGS",
+  "EVENTS",
+  "METADATA",
+  "EXPORTED_AT",
+  "GATEWAY_VERSION",
+];
+
+export const BLOCKED_IMPORT_KEYS = new Set(["CORETRUST"]);
