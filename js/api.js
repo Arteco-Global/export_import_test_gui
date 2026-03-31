@@ -53,6 +53,18 @@ export async function fetchBackupsRequest(baseUrl, accessToken, signal) {
   return response.json().catch(() => ({}));
 }
 
+export async function resetRequest(baseUrl, accessToken, resetSecret) {
+  const response = await fetch(`${baseUrl}/api/v2/reset`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "x-reset-secret": resetSecret,
+    },
+  });
+  const data = await response.json().catch(() => null);
+  return { response, data };
+}
+
 export async function downloadBackupRequest(baseUrl, accessToken, timestamp) {
   const response = await fetch(`${baseUrl}/api/v2/backups/${encodeURIComponent(timestamp)}`, {
     method: "GET",

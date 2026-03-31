@@ -51,7 +51,7 @@
 
         <div class="launcher-actions">
           <button id="openUssBtn" class="launcher-button" type="button">
-            Import/Export from a USS server
+            Import/Export/Reset from a USS server
           </button>
           <button id="openArtecoBtn" class="launcher-button launcher-button-alt" type="button">
             Convert from Arteco Server
@@ -124,6 +124,13 @@
           <button id="importBtn" class="primary" disabled>Invia import</button>
           <div class="status" id="importStatus"></div>
         </div>
+      </section>
+
+      <section class="card hidden" id="resetSection">
+        <h2>Reset server</h2>
+        <p><strong>ATTENZIONE:</strong> il reset cancella definitivamente tutte le REC presenti sul server.</p>
+        <button id="resetBtn" class="primary" type="button" disabled>Reset server</button>
+        <div class="status" id="resetStatus"></div>
       </section>
 
       </section>

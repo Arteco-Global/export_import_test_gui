@@ -8,6 +8,8 @@ import {
   loginStatus,
   passwordInput,
   refreshBackupsBtn,
+  resetBtn,
+  resetStatus,
   usernameInput,
 } from "./dom.js";
 import {
@@ -16,12 +18,14 @@ import {
   fetchMappingRequest,
   importRequest,
   loginRequest,
+  resetRequest,
   downloadBackupRequest,
   exportRequest,
 } from "./api.js";
 import {
   BACKUPS_AUTO_REFRESH_MS,
   BACKUPS_REQUEST_TIMEOUT_MS,
+  DEFAULT_RESET_SECRET,
 } from "./constants.js";
 import {
   areAssociationsComplete,
@@ -56,6 +60,7 @@ import {
   isImportKeyAllowed,
   normalizeBaseUrl,
   sanitizeFilenamePart,
+  escapeHtml,
   setStatus,
 } from "./utils.js";
 import {
@@ -125,6 +130,25 @@ function triggerBlobDownload(blob, filename) {
   link.click();
   link.remove();
   URL.revokeObjectURL(downloadUrl);
+}
+
+function formatResetResponse(payload) {
+  const parts = [];
+  if (payload?.message) {
+    parts.push(`<div>${escapeHtml(payload.message)}</div>`);
+  }
+
+  const data = payload?.data || {};
+  if (Array.isArray(data.errors) && data.errors.length > 0) {
+    const rows = data.errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("");
+    parts.push(`<div>Errori:</div><ul>${rows}</ul>`);
+  }
+
+  if (parts.length === 0) {
+    return payload?.success === true ? "OK" : "Reset fallito.";
+  }
+
+  return parts.join("");
 }
 
 export async function loadAuthServices() {
@@ -242,6 +266,53 @@ export async function handleExport() {
     setStatus(exportStatus, "File scaricato. Controlla la cartella Download.");
   } catch (error) {
     setStatus(exportStatus, `Errore download: ${error.message}`, true);
+  } finally {
+    refreshUiState();
+  }
+}
+
+export async function handleReset() {
+  const baseUrl = normalizeBaseUrl(baseUrlInput.value);
+  if (!baseUrl) {
+    setStatus(resetStatus, "Inserisci un base URL valido.", true);
+    return;
+  }
+  if (!state.accessToken) {
+    setStatus(resetStatus, "Fai login prima di resettare.", true);
+    return;
+  }
+
+  const confirmed = window.confirm("Sei sicuro di voler resettare il server?");
+  if (!confirmed) {
+    setStatus(resetStatus, "Reset annullato.");
+    return;
+  }
+
+  resetBtn.disabled = true;
+  setStatus(resetStatus, "Reset in corso...", false);
+
+  try {
+    const { response, data } = await resetRequest(
+      baseUrl,
+      state.accessToken,
+      DEFAULT_RESET_SECRET
+    );
+
+    if (!response.ok) {
+      if (data) {
+        setStatus(resetStatus, formatResetResponse(data), true);
+        return;
+      }
+      throw new Error(`Errore HTTP ${response.status}`);
+    }
+
+    if (data) {
+      setStatus(resetStatus, formatResetResponse(data), data.success !== true);
+    } else {
+      setStatus(resetStatus, "Reset completato.");
+    }
+  } catch (error) {
+    setStatus(resetStatus, `Errore reset: ${error.message}`, true);
   } finally {
     refreshUiState();
   }

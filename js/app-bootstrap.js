@@ -19,6 +19,7 @@ import {
   openUssBtn,
   passwordInput,
   refreshBackupsBtn,
+  resetBtn,
   usernameInput,
   loginBtn,
 } from "./dom.js";
@@ -30,6 +31,7 @@ import {
   handleFetchBackups,
   handleImport,
   handleLogin,
+  handleReset,
   navigationHandlers,
   refreshUiState,
   resetAccessToken,
@@ -58,6 +60,7 @@ passwordInput.addEventListener("input", handleCredentialChange);
 authServiceSelect.addEventListener("change", refreshUiState);
 loginBtn.addEventListener("click", handleLogin);
 exportBtn.addEventListener("click", handleExport);
+resetBtn.addEventListener("click", handleReset);
 refreshBackupsBtn.addEventListener("click", handleFetchBackups);
 configFileInput.addEventListener("change", handleConfigFile);
 importBtn.addEventListener("click", handleImport);

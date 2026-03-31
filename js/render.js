@@ -19,6 +19,8 @@ import {
   loginBtn,
   loginSpinner,
   refreshBackupsBtn,
+  resetBtn,
+  resetSection,
   ussSection,
   artecoSection,
 } from "./dom.js";
@@ -84,9 +86,11 @@ export function updateAuthState(baseUrlReady, credsReady) {
   const tokenReady = state.accessToken !== "";
   authServiceSelect.disabled = state.authServices.length <= 1;
   loginBtn.disabled = !(baseUrlReady && credsReady);
+  resetBtn.disabled = !(baseUrlReady && tokenReady);
   refreshBackupsBtn.disabled = !(baseUrlReady && tokenReady);
   exportSection.classList.toggle("hidden", !tokenReady);
   backupsSection.classList.toggle("hidden", !tokenReady);
+  resetSection.classList.toggle("hidden", !tokenReady);
   importSection.classList.toggle("hidden", !tokenReady);
   if (refreshBackupsBtn) {
     refreshBackupsBtn.disabled = !(baseUrlReady && tokenReady);
