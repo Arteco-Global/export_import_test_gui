@@ -22,6 +22,10 @@ import {
   resetBtn,
   resetSection,
   ussSection,
+  ussLicenseOverview,
+  ussLicenseOverviewSection,
+  artecoLicenseOverview,
+  artecoLicenseOverviewSection,
   artecoSection,
 } from "./dom.js";
 import { IMPORT_KEYS } from "./constants.js";
@@ -33,6 +37,10 @@ import {
 } from "./utils.js";
 import {
   extractServices,
+  getCameraDisplayName,
+  getCameraLicense,
+  getCameraServiceGuid,
+  getRawCameraEntries,
   formatServiceLabel,
   getCameraList,
   getCameraServices,
@@ -88,10 +96,13 @@ export function updateAuthState(baseUrlReady, credsReady) {
   loginBtn.disabled = !(baseUrlReady && credsReady);
   resetBtn.disabled = !(baseUrlReady && tokenReady);
   refreshBackupsBtn.disabled = !(baseUrlReady && tokenReady);
+  ussLicenseOverviewSection.classList.toggle("hidden", !tokenReady);
+  artecoLicenseOverviewSection.classList.toggle("hidden", !tokenReady);
   exportSection.classList.toggle("hidden", !tokenReady);
   backupsSection.classList.toggle("hidden", !tokenReady);
   resetSection.classList.toggle("hidden", !tokenReady);
   importSection.classList.toggle("hidden", !tokenReady);
+  renderLicenseOverviews();
   if (refreshBackupsBtn) {
     refreshBackupsBtn.disabled = !(baseUrlReady && tokenReady);
   }
@@ -143,6 +154,82 @@ export function clearBackupsList(message) {
   backupsList.appendChild(placeholder);
   setStatus(backupsStatus, "");
   setBackupsSummaryCount(0);
+}
+
+function renderLicenseOverview(container) {
+  container.innerHTML = "";
+
+  if (state.availableLicenses.length === 0) {
+    const placeholder = document.createElement("div");
+    placeholder.className = "placeholder";
+    placeholder.textContent = "Fai login per caricare il riepilogo licenze.";
+    container.appendChild(placeholder);
+    return;
+  }
+
+  const totals = state.availableLicenses.reduce(
+    (acc, license) => {
+      acc.provider += Number(license.channels || 0);
+      acc.allocated += Number(license.allocatedChannels || 0);
+      acc.available += Number(license.availableChannels || 0);
+      return acc;
+    },
+    { provider: 0, allocated: 0, available: 0 }
+  );
+
+  const stats = document.createElement("div");
+  stats.className = "license-overview-stats";
+
+  [
+    { label: "Totali provider", value: totals.provider },
+    { label: "Gia' allocate", value: totals.allocated },
+    { label: "Disponibili", value: totals.available },
+  ].forEach((item) => {
+    const stat = document.createElement("div");
+    stat.className = "license-overview-stat";
+
+    const value = document.createElement("div");
+    value.className = "license-overview-stat-value";
+    value.textContent = String(item.value);
+
+    const label = document.createElement("div");
+    label.className = "license-overview-stat-label";
+    label.textContent = item.label;
+
+    stat.appendChild(value);
+    stat.appendChild(label);
+    stats.appendChild(stat);
+  });
+
+  const list = document.createElement("div");
+  list.className = "license-overview-list";
+
+  state.availableLicenses.forEach((license) => {
+    const row = document.createElement("div");
+    row.className = "license-overview-row";
+
+    const type = document.createElement("div");
+    type.className = "license-overview-type";
+    type.textContent = license.type;
+
+    const count = document.createElement("div");
+    count.className = "license-overview-count";
+    count.textContent =
+      `${license.availableChannels} disponibili / ${license.channels} totali` +
+      ` (${license.allocatedChannels || 0} allocate)`;
+
+    row.appendChild(type);
+    row.appendChild(count);
+    list.appendChild(row);
+  });
+
+  container.appendChild(stats);
+  container.appendChild(list);
+}
+
+export function renderLicenseOverviews() {
+  renderLicenseOverview(ussLicenseOverview);
+  renderLicenseOverview(artecoLicenseOverview);
 }
 
 export function normalizeAuthServices(payload) {
@@ -386,12 +473,135 @@ export function clearAssociationList(message) {
   associationList.appendChild(placeholder);
 }
 
+function buildCameraLicenseKey(serviceGuid, cameraIndex) {
+  return `${serviceGuid}::${cameraIndex}`;
+}
+
+function getCameraLicenseUsage() {
+  const usage = new Map();
+  state.cameraLicenseAssignments.forEach((licenseType) => {
+    if (!licenseType) {
+      return;
+    }
+    usage.set(licenseType, (usage.get(licenseType) || 0) + 1);
+  });
+  return usage;
+}
+
+function getLicenseSelectionValue(serviceGuid, cameraIndex, fallbackValue) {
+  const key = buildCameraLicenseKey(serviceGuid, cameraIndex);
+  if (state.cameraLicenseAssignments.has(key)) {
+    return state.cameraLicenseAssignments.get(key);
+  }
+  return fallbackValue;
+}
+
+function renderCameraLicenseControls(serviceGuid, service, onChange) {
+  const cameraEntries = getRawCameraEntries(service);
+  if (cameraEntries.length === 0) {
+    return null;
+  }
+
+  const block = document.createElement("div");
+  block.className = "association-cameras";
+
+  const title = document.createElement("div");
+  title.className = "association-cameras-title";
+  title.textContent = `Licenze telecamere (${cameraEntries.length})`;
+  block.appendChild(title);
+
+  cameraEntries.forEach((cameraEntry, cameraIndex) => {
+    const sourceLicense = getCameraLicense(cameraEntry);
+    const currentLicense = getLicenseSelectionValue(
+      serviceGuid,
+      cameraIndex,
+      sourceLicense
+    );
+    const usage = getCameraLicenseUsage();
+
+    const row = document.createElement("div");
+    row.className = "association-camera-row";
+
+    const details = document.createElement("div");
+    details.className = "association-camera-details";
+
+    const name = document.createElement("div");
+    name.className = "association-camera-name";
+    name.textContent = getCameraDisplayName(cameraEntry, cameraIndex);
+
+    const source = document.createElement("div");
+    source.className = "association-camera-source-license";
+    source.textContent = `Licenza origine: ${sourceLicense || "nessuna"}`;
+
+    details.appendChild(name);
+    details.appendChild(source);
+
+    const select = document.createElement("select");
+    select.className = "association-camera-license-select";
+    select.disabled = state.availableLicenses.length === 0;
+    if (state.availableLicenses.length === 0) {
+      const unavailableOption = document.createElement("option");
+      unavailableOption.value = "";
+      unavailableOption.textContent = "Nessuna licenza disponibile dal server";
+      select.appendChild(unavailableOption);
+    }
+
+    state.availableLicenses.forEach((license) => {
+      const remaining =
+        license.availableChannels -
+        (usage.get(license.type) || 0) +
+        (license.type === currentLicense ? 1 : 0);
+      const option = document.createElement("option");
+      option.value = license.type;
+      option.textContent = `${license.type} (${Math.max(remaining, 0)} libere / ${license.availableChannels})`;
+      if (remaining <= 0 && license.type !== currentLicense) {
+        option.disabled = true;
+      }
+      select.appendChild(option);
+    });
+
+    if (
+      currentLicense &&
+      !state.availableLicenses.some((license) => license.type === currentLicense)
+    ) {
+      const legacyOption = document.createElement("option");
+      legacyOption.value = currentLicense;
+      legacyOption.textContent =
+        state.availableLicenses.length === 0
+          ? `${currentLicense} (licenza presente nel config.json)`
+          : `${currentLicense} (non presente sul nuovo server)`;
+      select.appendChild(legacyOption);
+    }
+
+    select.value = currentLicense;
+    select.addEventListener("change", () => {
+      const key = buildCameraLicenseKey(serviceGuid, cameraIndex);
+      state.cameraLicenseAssignments.set(key, select.value);
+      buildAssociationUI(onChange);
+      onChange();
+    });
+
+    row.appendChild(details);
+    row.appendChild(select);
+    block.appendChild(row);
+  });
+
+  return block;
+}
+
 export function buildAssociationUI(onChange) {
+  const previousSelections = new Map(state.associationSelections);
   state.associationSelections.clear();
   associationList.innerHTML = "";
 
   const oldServices = extractServices(state.loadedMappingOld);
   const newServices = extractServices(state.loadedMappingNew);
+  const oldCameraServices = new Map(
+    getCameraServices({ CHANNELS: state.loadedConfig }).map((service, index) => [
+      getCameraServiceGuid(service, index),
+      service,
+    ])
+  );
 
   if (oldServices.length === 0) {
     clearAssociationList("Nessun servizio trovato nel MAPPING del config.json.");
@@ -407,6 +617,9 @@ export function buildAssociationUI(onChange) {
   }, {});
 
   oldServices.forEach((oldService) => {
+    const card = document.createElement("div");
+    card.className = "association-card";
+
     const row = document.createElement("div");
     row.className = "association-row";
 
@@ -432,7 +645,14 @@ export function buildAssociationUI(onChange) {
       select.appendChild(option);
     });
 
-    if (candidates.length === 1) {
+    const preservedSelection = previousSelections.get(oldService.serviceGuid);
+    if (
+      preservedSelection &&
+      candidates.some((candidate) => candidate.serviceGuid === preservedSelection)
+    ) {
+      select.value = preservedSelection;
+      state.associationSelections.set(oldService.serviceGuid, preservedSelection);
+    } else if (candidates.length === 1) {
       select.value = candidates[0].serviceGuid;
       state.associationSelections.set(oldService.serviceGuid, candidates[0].serviceGuid);
     } else if (oldService.serviceName) {
@@ -455,7 +675,18 @@ export function buildAssociationUI(onChange) {
     row.appendChild(typeLabel);
     row.appendChild(oldGuid);
     row.appendChild(select);
-    associationList.appendChild(row);
+    card.appendChild(row);
+
+    const cameraLicenseBlock = renderCameraLicenseControls(
+      oldService.serviceGuid,
+      oldCameraServices.get(oldService.serviceGuid),
+      onChange
+    );
+    if (cameraLicenseBlock) {
+      card.appendChild(cameraLicenseBlock);
+    }
+
+    associationList.appendChild(card);
   });
 }
 

@@ -5,6 +5,7 @@ export const state = {
   loadedMappingNew: null,
   loadedPayloadByKey: {},
   associationSelections: new Map(),
+  cameraLicenseAssignments: new Map(),
   selectedImportKeys: new Set(),
   accessToken: "",
   lastBaseUrl: "",

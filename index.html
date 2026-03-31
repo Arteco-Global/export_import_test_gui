@@ -68,16 +68,23 @@
           <button id="backToHomeFromUssBtn" class="secondary nav-back" type="button">Torna indietro</button>
         </header>
 
+      <section class="card hidden" id="ussLicenseOverviewSection">
+        <h2>Licenze server</h2>
+        <div id="ussLicenseOverview" class="license-overview">
+          <div class="placeholder">Fai login per caricare il riepilogo licenze.</div>
+        </div>
+      </section>
+
       <section class="card hidden" id="exportSection">
         <h2>Export</h2>
-        <p>Scarica l'export da <span class="mono">/api/v2/export</span> e salvalo dove vuoi.</p>
+        <p>Scarica l'export del server e salvalo dove vuoi.</p>
         <button id="exportBtn" class="primary" disabled>Scarica export</button>
         <div class="status" id="exportStatus"></div>
       </section>
 
       <section class="card hidden" id="backupsSection">
         <h2>Backups</h2>
-        <p>Elenco dei backup presenti su <span class="mono">/api/v2/backups</span>.</p>
+        <p>Elenco dei backup presenti sul server.</p>
         <div class="backups-actions">
           <button id="refreshBackupsBtn" class="primary" disabled>Ricarica lista</button>
         </div>
@@ -95,7 +102,7 @@
 
       <section class="card hidden" id="importSection">
         <h2>Import</h2>
-        <p>Carica il <span class="mono">config.json</span> con chiavi <span class="mono">CHANNELS</span> e <span class="mono">MAPPING</span>. Puoi attivare o disattivare <span class="mono">SNAPSHOTS</span>, <span class="mono">RECORDINGS</span>, <span class="mono">EVENTS</span> e le altre sezioni disponibili.</p>
+        <p>Carica il <span class="mono">config.json</span> con chiavi <span class="mono">CHANNELS</span> e <span class="mono">MAPPING</span>.</p>
         <div class="field">
           <label for="configFile">config.json (vecchio server)</label>
           <input id="configFile" type="file" accept="application/json" />
@@ -143,6 +150,13 @@
           </div>
           <button id="backToHomeFromArtecoBtn" class="secondary nav-back" type="button">Torna indietro</button>
         </header>
+
+        <section class="card hidden" id="artecoLicenseOverviewSection">
+          <h2>Licenze server</h2>
+          <div id="artecoLicenseOverview" class="license-overview">
+            <div class="placeholder">Fai login per caricare il riepilogo licenze.</div>
+          </div>
+        </section>
 
         <section class="card">
           <h2>Arteco XML to USS</h2>

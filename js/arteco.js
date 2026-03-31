@@ -217,18 +217,90 @@ function buildArtecoCameraDetails(camera) {
 function normalizeLicensePayload(payload) {
   const licenseRoot =
     payload?.license ||
+    payload?.root?.server?.license ||
     payload?.root?.license ||
     payload?.data?.license ||
     payload?.root?.data?.license ||
     payload?.root?.root?.license ||
     payload?.payload?.license ||
     null;
-  const licenses = Array.isArray(licenseRoot?.licenses) ? licenseRoot.licenses : [];
+  const licenseContainer =
+    (Array.isArray(licenseRoot?.licenses) && licenseRoot) ||
+    (Array.isArray(licenseRoot?.license?.licenses) && licenseRoot.license) ||
+    (Array.isArray(payload?.license?.licenses) && payload.license) ||
+    (Array.isArray(payload?.root?.server?.license?.license?.licenses) &&
+      payload.root.server.license.license) ||
+    (Array.isArray(payload?.root?.license?.license?.licenses) && payload.root.license.license) ||
+    null;
+  const licenses = Array.isArray(licenseContainer?.licenses) ? licenseContainer.licenses : [];
+  const allocationsRoot =
+    payload?.licenseAllocations ||
+    payload?.root?.server?.licenseAllocations ||
+    licenseRoot?.licenseAllocations ||
+    payload?.root?.licenseAllocations ||
+    payload?.data?.licenseAllocations ||
+    payload?.root?.data?.licenseAllocations ||
+    payload?.root?.root?.licenseAllocations ||
+    payload?.payload?.licenseAllocations ||
+    [];
+
+  const allocatedByType = new Map();
+  const allocationList = Array.isArray(allocationsRoot)
+    ? allocationsRoot
+    : Array.isArray(allocationsRoot?.allocations)
+      ? allocationsRoot.allocations
+      : [];
+
+  const registerAllocation = (allocation) => {
+    if (!allocation || typeof allocation !== "object") {
+      return;
+    }
+    const type = String(
+      allocation.type ||
+      allocation.licenseType ||
+      allocation.license ||
+      ""
+    ).trim();
+    const channels = Number(
+      allocation.channels ||
+      allocation.allocatedChannels ||
+      allocation.count ||
+      0
+    );
+    if (!type || !Number.isFinite(channels) || channels <= 0) {
+      return;
+    }
+    allocatedByType.set(type, (allocatedByType.get(type) || 0) + channels);
+  };
+
+  const collectAllocations = (entries) => {
+    if (!Array.isArray(entries)) {
+      return;
+    }
+
+    entries.forEach((allocation) => {
+      if (!allocation || typeof allocation !== "object") {
+        return;
+      }
+
+      registerAllocation(allocation);
+      collectAllocations(allocation.allocated);
+      collectAllocations(allocation.allocations);
+      collectAllocations(allocation.items);
+    });
+  };
+
+  collectAllocations(allocationList);
 
   return licenses
     .map((license) => ({
       type: String(license?.type || "").trim(),
       channels: Number(license?.channels || 0),
+      allocatedChannels: allocatedByType.get(String(license?.type || "").trim()) || 0,
+    }))
+    .map((license) => ({
+      ...license,
+      availableChannels: Math.max(license.channels - license.allocatedChannels, 0),
     }))
     .filter((license) => license.type !== "" && license.channels > 0);
 }
@@ -299,8 +371,10 @@ function getLicenseAvailabilityMap() {
 
   state.availableLicenses.forEach((license) => {
     availability.set(license.type, {
-      total: license.channels,
+      total: license.availableChannels,
       used: usage.get(license.type) || 0,
+      providerTotal: license.channels,
+      allocated: license.allocatedChannels || 0,
     });
   });
 
@@ -322,7 +396,7 @@ function hasLicenseCapacityForCamera(licenseType, cameraId) {
   const used = usage.get(licenseType) || 0;
   const effectiveUsed = currentAssignment === licenseType ? used - 1 : used;
 
-  return effectiveUsed < license.channels;
+  return effectiveUsed < license.availableChannels;
 }
 
 function validateSelectedCameraLicenses() {
@@ -341,10 +415,10 @@ function validateSelectedCameraLicenses() {
   const usage = getAssignedLicenseUsage();
   for (const license of state.availableLicenses) {
     const used = usage.get(license.type) || 0;
-    if (used > license.channels) {
+    if (used > license.availableChannels) {
       return {
         ok: false,
-        message: `Licenze insufficienti per ${license.type}: assegnate ${used}, disponibili ${license.channels}.`,
+        message: `Licenze insufficienti per ${license.type}: assegnate ${used}, disponibili ${license.availableChannels}.`,
       };
     }
   }
@@ -372,10 +446,17 @@ function renderArtecoLicenseSummary() {
     type.className = "arteco-license-type";
     type.textContent = license.type;
 
-    const counters = availability.get(license.type) || { total: license.channels, used: 0 };
+    const counters = availability.get(license.type) || {
+      total: license.availableChannels,
+      used: 0,
+      providerTotal: license.channels,
+      allocated: license.allocatedChannels || 0,
+    };
     const count = document.createElement("div");
     count.className = "arteco-license-count";
-    count.textContent = `${Math.max(counters.total - counters.used, 0)} libere / ${counters.total}`;
+    count.textContent =
+      `${Math.max(counters.total - counters.used, 0)} libere / ${counters.total}` +
+      ` (provider ${counters.providerTotal}, allocate ${counters.allocated})`;
 
     item.appendChild(type);
     item.appendChild(count);
@@ -393,7 +474,10 @@ function renderArtecoBulkLicenseOptions() {
 
   const availability = getLicenseAvailabilityMap();
   state.availableLicenses.forEach((license) => {
-    const counters = availability.get(license.type) || { total: license.channels, used: 0 };
+    const counters = availability.get(license.type) || {
+      total: license.availableChannels,
+      used: 0,
+    };
     const remaining = counters.total - counters.used;
     if (remaining <= 0) {
       return;
@@ -401,7 +485,7 @@ function renderArtecoBulkLicenseOptions() {
 
     const option = document.createElement("option");
     option.value = license.type;
-    option.textContent = `${license.type} (${remaining} libere / ${license.channels})`;
+    option.textContent = `${license.type} (${remaining} libere / ${license.availableChannels})`;
     artecoBulkLicenseSelect.appendChild(option);
   });
 
@@ -512,7 +596,10 @@ function createArtecoCameraRow(camera) {
   const currentLicense = getSelectedCameraLicense(camera.artecoId);
 
   state.availableLicenses.forEach((license) => {
-    const counters = availability.get(license.type) || { total: license.channels, used: 0 };
+    const counters = availability.get(license.type) || {
+      total: license.availableChannels,
+      used: 0,
+    };
     const remaining = counters.total - counters.used;
     if (remaining <= 0 && license.type !== currentLicense) {
       return;
@@ -520,7 +607,7 @@ function createArtecoCameraRow(camera) {
 
     const option = document.createElement("option");
     option.value = license.type;
-    option.textContent = `${license.type} (${Math.max(remaining, 0)} libere / ${license.channels})`;
+    option.textContent = `${license.type} (${Math.max(remaining, 0)} libere / ${license.availableChannels})`;
     licenseSelect.appendChild(option);
   });
 

@@ -131,6 +131,64 @@ body {
   margin-top: 0;
 }
 
+.license-overview {
+  display: grid;
+  gap: 14px;
+}
+
+.license-overview-stats {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.license-overview-stat {
+  padding: 12px;
+  border-radius: 12px;
+  background: #151c20;
+  border: 1px solid var(--border);
+}
+
+.license-overview-stat-value {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.license-overview-stat-label {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.license-overview-list {
+  display: grid;
+  gap: 8px;
+}
+
+.license-overview-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #151c20;
+  border: 1px solid var(--border);
+}
+
+.license-overview-type {
+  font-family: "SFMono-Regular", "Courier New", monospace;
+  font-size: 13px;
+}
+
+.license-overview-count {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: right;
+}
+
 #resetSection {
   background: #2a1111;
   border-color: #4b1f1f;
@@ -449,6 +507,11 @@ button.primary:not(:disabled):hover {
   gap: 10px;
 }
 
+.association-card {
+  display: grid;
+  gap: 10px;
+}
+
 .arteco-toolbar {
   display: flex;
   align-items: center;
@@ -664,6 +727,53 @@ button.primary:not(:disabled):hover {
   color: var(--muted);
 }
 
+.association-cameras {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #151c20;
+  border: 1px dashed var(--border);
+}
+
+.association-cameras-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.association-camera-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(220px, 1.5fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.association-camera-name {
+  font-size: 14px;
+}
+
+.association-camera-details {
+  display: grid;
+  gap: 4px;
+}
+
+.association-camera-source-license {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.association-camera-license-select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #0f1518;
+  color: var(--ink);
+  font-size: 14px;
+}
+
 .placeholder {
   font-size: 14px;
   color: var(--muted);
@@ -672,6 +782,18 @@ button.primary:not(:disabled):hover {
 @media (max-width: 700px) {
   .association-row {
     grid-template-columns: 1fr;
+  }
+
+  .association-camera-row {
+    grid-template-columns: 1fr;
+  }
+
+  .license-overview-row {
+    flex-direction: column;
+  }
+
+  .license-overview-count {
+    text-align: left;
   }
 
   .backup-row {

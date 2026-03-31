@@ -54,6 +54,10 @@ import {
   applyGuidMapToConfig,
   extractConfigPayload,
   formatImportResponse,
+  getCameraLicense,
+  getCameraServiceGuid,
+  getRawCameraEntries,
+  setCameraLicense,
   readConfigFile,
 } from "./import-helpers.js";
 import {
@@ -149,6 +153,135 @@ function formatResetResponse(payload) {
   }
 
   return parts.join("");
+}
+
+function buildCameraLicenseKey(serviceGuid, cameraIndex) {
+  return `${serviceGuid}::${cameraIndex}`;
+}
+
+function resetCameraLicenseAssignments() {
+  state.cameraLicenseAssignments.clear();
+}
+
+function initializeCameraLicenseAssignments(config) {
+  resetCameraLicenseAssignments();
+  const cameraServices =
+    config?.cameraServices ||
+    config?.camera_services ||
+    config?.services ||
+    config?.items ||
+    [];
+
+  if (!Array.isArray(cameraServices)) {
+    return;
+  }
+
+  cameraServices.forEach((service, serviceIndex) => {
+    const serviceGuid = getCameraServiceGuid(service, serviceIndex);
+    const cameraEntries = getRawCameraEntries(service);
+    cameraEntries.forEach((cameraEntry, cameraIndex) => {
+      state.cameraLicenseAssignments.set(
+        buildCameraLicenseKey(serviceGuid, cameraIndex),
+        getCameraLicense(cameraEntry)
+      );
+    });
+  });
+}
+
+function validateCameraLicenses(channelsPayload) {
+  const cameraServices =
+    channelsPayload?.cameraServices ||
+    channelsPayload?.camera_services ||
+    channelsPayload?.services ||
+    channelsPayload?.items ||
+    [];
+
+  if (!Array.isArray(cameraServices)) {
+    return { ok: true };
+  }
+
+  if (state.availableLicenses.length === 0) {
+    const totalCameras = cameraServices.reduce(
+      (count, service) => count + getRawCameraEntries(service).length,
+      0
+    );
+    if (totalCameras > 0) {
+      return {
+        ok: false,
+        message: "Nessuna licenza disponibile sul nuovo server. Impossibile completare l'import delle telecamere.",
+      };
+    }
+    return { ok: true };
+  }
+
+  const capacityByType = new Map(
+    state.availableLicenses.map((license) => [license.type, license.availableChannels])
+  );
+  const usage = new Map();
+
+  for (const service of cameraServices) {
+    const cameraEntries = getRawCameraEntries(service);
+    for (let cameraIndex = 0; cameraIndex < cameraEntries.length; cameraIndex += 1) {
+      const cameraEntry = cameraEntries[cameraIndex];
+      const licenseType = getCameraLicense(cameraEntry);
+      if (!licenseType) {
+        const cameraName =
+          cameraEntry?.camera?.descr ||
+          cameraEntry?.descr ||
+          cameraEntry?.camera?.name ||
+          cameraEntry?.name ||
+          `Camera ${cameraIndex + 1}`;
+        return {
+          ok: false,
+          message: `Licenza mancante per ${cameraName}. Assegna una licenza a tutte le telecamere prima dell'import.`,
+        };
+      }
+      if (!capacityByType.has(licenseType)) {
+        return {
+          ok: false,
+          message: `Licenza ${licenseType} non presente sul nuovo server.`,
+        };
+      }
+      usage.set(licenseType, (usage.get(licenseType) || 0) + 1);
+    }
+  }
+
+  for (const [licenseType, used] of usage.entries()) {
+    const capacity = capacityByType.get(licenseType) || 0;
+    if (used > capacity) {
+      return {
+        ok: false,
+        message: `Licenze insufficienti per ${licenseType}: assegnate ${used}, disponibili ${capacity}.`,
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
+function applyCameraLicenseAssignments(channelsPayload) {
+  const cameraServices =
+    channelsPayload?.cameraServices ||
+    channelsPayload?.camera_services ||
+    channelsPayload?.services ||
+    channelsPayload?.items ||
+    [];
+
+  if (!Array.isArray(cameraServices)) {
+    return;
+  }
+
+  cameraServices.forEach((service, serviceIndex) => {
+    const serviceGuid = getCameraServiceGuid(service, serviceIndex);
+    const cameraEntries = getRawCameraEntries(service);
+    cameraEntries.forEach((cameraEntry, cameraIndex) => {
+      const key = buildCameraLicenseKey(serviceGuid, cameraIndex);
+      if (!state.cameraLicenseAssignments.has(key)) {
+        return;
+      }
+      setCameraLicense(cameraEntry, state.cameraLicenseAssignments.get(key));
+    });
+  });
 }
 
 export async function loadAuthServices() {
@@ -440,6 +573,7 @@ export function handleConfigFile(event) {
     state.loadedConfig = null;
     state.loadedMappingOld = null;
     state.loadedPayloadByKey = {};
+    resetCameraLicenseAssignments();
     clearImportKeyList();
     state.associationSelections.clear();
     clearAssociationList("Carica il config.json con MAPPING e ottieni quello nuovo.");
@@ -458,6 +592,7 @@ export function handleConfigFile(event) {
       state.loadedConfig = extracted.config;
       state.loadedMappingOld = extracted.mapping;
       state.loadedPayloadByKey = extracted.payloadByKey;
+      initializeCameraLicenseAssignments(extracted.config);
       renderImportKeyOptions(state.loadedPayloadByKey, refreshUiState);
       updateImportSummary();
 
@@ -494,6 +629,7 @@ export function handleConfigFile(event) {
       state.loadedConfig = null;
       state.loadedMappingOld = null;
       state.loadedPayloadByKey = {};
+      resetCameraLicenseAssignments();
       clearImportKeyList();
       updateImportSummary();
       setImportLoading(false);
@@ -534,6 +670,9 @@ export async function handleImport() {
 
     state.selectedImportKeys.forEach((key) => {
       if (isImportKeyAllowed(key) && Object.prototype.hasOwnProperty.call(payloadCopy, key)) {
+        if (key === "CHANNELS") {
+          applyCameraLicenseAssignments(payloadCopy[key]);
+        }
         applyGuidMapToConfig(payloadCopy[key], guidMap);
       }
     });
@@ -544,6 +683,14 @@ export async function handleImport() {
         importPayload[key] = payloadCopy[key];
       }
     });
+
+    if (Object.prototype.hasOwnProperty.call(importPayload, "CHANNELS")) {
+      const licenseValidation = validateCameraLicenses(importPayload.CHANNELS);
+      if (!licenseValidation.ok) {
+        setStatus(importStatus, licenseValidation.message, true);
+        return;
+      }
+    }
 
     const { response, data } = await importRequest(baseUrl, state.accessToken, importPayload);
     if (!response.ok) {

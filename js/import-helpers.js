@@ -81,6 +81,74 @@ export function getCameraServices(payload) {
   return [];
 }
 
+export function getCameraServiceGuid(service, index = 0) {
+  return (
+    service?.serviceGuid ||
+    service?.guid ||
+    service?.serviceId ||
+    service?.id ||
+    `camera-service-${index + 1}`
+  );
+}
+
+export function getRawCameraEntries(service) {
+  const camerasValue =
+    service?.cameras ||
+    service?.cameraList ||
+    service?.camera ||
+    service?.channels ||
+    service?.devices ||
+    [];
+
+  if (Array.isArray(camerasValue)) {
+    return camerasValue;
+  }
+
+  if (camerasValue && typeof camerasValue === "object") {
+    return Object.values(camerasValue);
+  }
+
+  return [];
+}
+
+export function getCameraDisplayName(cameraEntry, index = 0) {
+  const camera =
+    cameraEntry?.camera && typeof cameraEntry.camera === "object"
+      ? cameraEntry.camera
+      : cameraEntry;
+
+  return (
+    camera?.descr ||
+    camera?.name ||
+    camera?.label ||
+    camera?.title ||
+    camera?.id ||
+    camera?.guid ||
+    `Camera ${index + 1}`
+  );
+}
+
+export function getCameraLicense(cameraEntry) {
+  if (cameraEntry?.camera && typeof cameraEntry.camera === "object") {
+    return String(cameraEntry.camera.license || "").trim();
+  }
+  if (cameraEntry && typeof cameraEntry === "object") {
+    return String(cameraEntry.license || "").trim();
+  }
+  return "";
+}
+
+export function setCameraLicense(cameraEntry, license) {
+  if (!cameraEntry || typeof cameraEntry !== "object") {
+    return;
+  }
+  if (cameraEntry.camera && typeof cameraEntry.camera === "object") {
+    cameraEntry.camera.license = license;
+    return;
+  }
+  cameraEntry.license = license;
+}
+
 export function getServiceLabel(service, fallback) {
   const name =
     service?.name ||
@@ -103,13 +171,7 @@ export function getServiceLabel(service, fallback) {
 }
 
 export function getCameraList(service) {
-  const camerasValue =
-    service?.cameras ||
-    service?.cameraList ||
-    service?.camera ||
-    service?.channels ||
-    service?.devices ||
-    [];
+  const camerasValue = getRawCameraEntries(service);
 
   if (Array.isArray(camerasValue)) {
     return camerasValue.map((item, index) => {
@@ -117,22 +179,10 @@ export function getCameraList(service) {
         return String(item);
       }
       if (item && typeof item === "object") {
-        return (
-          item.name ||
-          item.label ||
-          item.title ||
-          item.descr ||
-          item.id ||
-          item.guid ||
-          `Camera ${index + 1}`
-        );
+        return getCameraDisplayName(item, index);
       }
       return `Camera ${index + 1}`;
     });
-  }
-
-  if (camerasValue && typeof camerasValue === "object") {
-    return Object.keys(camerasValue);
   }
 
   return [];
