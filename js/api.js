@@ -1,9 +1,11 @@
+import { t } from "./i18n.js";
+
 export async function fetchAuthServices(baseUrl) {
   const response = await fetch(`${baseUrl}/api/v2/server/auth-services`, {
     method: "GET",
   });
   if (!response.ok) {
-    throw new Error(`Errore HTTP ${response.status}`);
+    throw new Error(t("httpError", { status: response.status }));
   }
   return response.json().catch(() => ({}));
 }
@@ -21,7 +23,7 @@ export async function loginRequest(baseUrl, authGuid, username, password) {
     }),
   });
   if (!response.ok) {
-    throw new Error(`Errore HTTP ${response.status}`);
+    throw new Error(t("httpError", { status: response.status }));
   }
   return response.json().catch(() => null);
 }
@@ -34,7 +36,7 @@ export async function exportRequest(baseUrl, accessToken) {
     },
   });
   if (!response.ok) {
-    throw new Error(`Errore HTTP ${response.status}`);
+    throw new Error(t("httpError", { status: response.status }));
   }
   return response.blob();
 }
@@ -48,7 +50,7 @@ export async function fetchBackupsRequest(baseUrl, accessToken, signal) {
     signal,
   });
   if (!response.ok) {
-    throw new Error(`Errore HTTP ${response.status}`);
+    throw new Error(t("httpError", { status: response.status }));
   }
   return response.json().catch(() => ({}));
 }
@@ -73,7 +75,7 @@ export async function downloadBackupRequest(baseUrl, accessToken, timestamp) {
     },
   });
   if (!response.ok) {
-    throw new Error(`Errore HTTP ${response.status}`);
+    throw new Error(t("httpError", { status: response.status }));
   }
   return response.blob();
 }
@@ -86,7 +88,7 @@ export async function fetchMappingRequest(baseUrl, accessToken) {
     },
   });
   if (!response.ok) {
-    throw new Error(`Errore HTTP ${response.status}`);
+    throw new Error(t("httpError", { status: response.status }));
   }
   return response.json();
 }

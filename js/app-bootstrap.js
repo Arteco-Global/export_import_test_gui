@@ -39,6 +39,8 @@ import {
 import {
   clearAssociationList,
   clearBackupsList,
+  renderAuthServices,
+  renderLicenseOverviews,
   resetAuthServices,
   setImportLoading,
   showHome,
@@ -52,7 +54,10 @@ import {
   handleArtecoImport,
   handleArtecoSelection,
   handleArtecoTargetServiceChange,
+  refreshArtecoUiState,
 } from "./arteco.js";
+import { initI18n, onLanguageChange, t } from "./i18n.js";
+import { state } from "./state.js";
 
 baseUrlInput.addEventListener("input", handleBaseUrlChange);
 usernameInput.addEventListener("input", handleCredentialChange);
@@ -78,11 +83,27 @@ openArtecoBtn.addEventListener("click", navigationHandlers.showArtecoPage);
 backToHomeFromUssBtn.addEventListener("click", navigationHandlers.showHome);
 backToHomeFromArtecoBtn.addEventListener("click", navigationHandlers.showHome);
 
-resetAuthServices("Carica gli auth service");
+initI18n();
+
+onLanguageChange(() => {
+  if (state.authServices.length > 0) {
+    renderAuthServices(state.authServices);
+  } else {
+    resetAuthServices(t("authLoadServices"));
+  }
+  if (!state.accessToken) {
+    clearBackupsList(t("loginToViewBackups"));
+  }
+  renderLicenseOverviews();
+  refreshArtecoUiState();
+  refreshUiState();
+});
+
+resetAuthServices(t("authLoadServices"));
 resetAccessToken();
 refreshUiState();
-clearBackupsList("Login per vedere i backup disponibili.");
-clearAssociationList("Carica il config.json con MAPPING e ottieni quello nuovo.");
+clearBackupsList(t("loginToViewBackups"));
+clearAssociationList(t("configNeedMappingAndNew"));
 clearArtecoState();
 setImportLoading(false);
 showHome();

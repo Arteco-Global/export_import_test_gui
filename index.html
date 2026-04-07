@@ -8,52 +8,60 @@
   </head>
   <body>
     <main class="app">
+      <section class="language-switch">
+        <label for="languageSelect" data-i18n="langLabel">Lingua</label>
+        <select id="languageSelect">
+          <option value="it">ITA</option>
+          <option value="en">ENG</option>
+        </select>
+      </section>
+
       <section class="card" id="loginSection">
-        <h2>Login USS</h2>
+        <h2 data-i18n="loginCardTitle">Login USS</h2>
         <div class="field">
-          <label for="baseUrl">Base URL</label>
-          <input id="baseUrl" type="text" placeholder="https://VXXXX.lan.omniaweb.cloud" value="https://VXXXX.lan.omniaweb.cloud" />
+          <label for="baseUrl" data-i18n="baseUrlLabel">Base URL</label>
+          <input id="baseUrl" type="text" placeholder="https://VXXXX.lan.omniaweb.cloud" data-i18n-placeholder="baseUrlPlaceholder" value="https://VXXXX.lan.omniaweb.cloud" />
         </div>
         <div class="grid">
           <div class="field">
-            <label for="username">Username</label>
+            <label for="username" data-i18n="usernameLabel">Username</label>
             <input id="username" type="text" placeholder="admin" value="admin" />
           </div>
           <div class="field">
-            <label for="password">Password</label>
+            <label for="password" data-i18n="passwordLabel">Password</label>
             <input id="password" type="password" placeholder="••••••" value="admin" />
           </div>
         </div>
         <div class="field">
-          <label for="authServiceSelect">Auth service</label>
+          <label for="authServiceSelect" data-i18n="authServiceLabel">Auth service</label>
           <select id="authServiceSelect" disabled>
-            <option value="">Carica gli auth service</option>
+            <option value="" data-i18n="authLoadServices">Carica gli auth service</option>
           </select>
         </div>
         <div class="grid">
-          <button id="loginBtn" class="primary" disabled>Login</button>
+          <button id="loginBtn" class="primary" disabled data-i18n="loginButton">Login</button>
         </div>
         <div id="loginSpinner" class="login-spinner hidden">
           <div class="spinner" aria-hidden="true"></div>
-          <div>Login in corso...</div>
+          <div data-i18n="loginSpinner">Login in corso...</div>
         </div>
         <div class="status" id="loginStatus"></div>
-        <div class="hint" id="baseUrlHint">
+        <div class="hint" id="baseUrlHint" data-i18n="baseUrlHint">
           Dopo il login compariranno i due strumenti disponibili.
         </div>
       </section>
 
       <section class="launcher-card hidden" id="launcherSection">
         <div class="launcher-header">
-          <h1>Import / Export</h1>
-          <p>Scegli cosa vuoi fare.</p>
+          <h1 data-i18n="launcherTitle">Import / Export</h1>
+          <p data-i18n="launcherSubtitle">Scegli cosa vuoi fare.</p>
         </div>
 
         <div class="launcher-actions">
-          <button id="openUssBtn" class="launcher-button" type="button">
+          <button id="openUssBtn" class="launcher-button" type="button" data-i18n="launcherUssButton">
             Import/Export/Reset from a USS server
           </button>
-          <button id="openArtecoBtn" class="launcher-button launcher-button-alt" type="button">
+          <button id="openArtecoBtn" class="launcher-button launcher-button-alt" type="button" data-i18n="launcherArtecoButton">
             Convert from Arteco Server
           </button>
         </div>
@@ -62,81 +70,81 @@
       <section class="tool-view hidden" id="ussSection">
         <header class="header">
           <div>
-            <h1>Import / Export</h1>
-            <p>GUI minimale per scaricare l'export o aggiornare un config.json.</p>
+            <h1 data-i18n="ussHeaderTitle">Import / Export</h1>
+            <p data-i18n="ussHeaderSubtitle">GUI minimale per scaricare l'export o aggiornare un config.json.</p>
           </div>
-          <button id="backToHomeFromUssBtn" class="secondary nav-back" type="button">Torna indietro</button>
+          <button id="backToHomeFromUssBtn" class="secondary nav-back" type="button" data-i18n="backButton">Torna indietro</button>
         </header>
 
       <section class="card hidden" id="ussLicenseOverviewSection">
-        <h2>Licenze server</h2>
+        <h2 data-i18n="serverLicensesTitle">Licenze server</h2>
         <div id="ussLicenseOverview" class="license-overview">
-          <div class="placeholder">Fai login per caricare il riepilogo licenze.</div>
+          <div class="placeholder" data-i18n="loginToLoadLicenseOverview">Fai login per caricare il riepilogo licenze.</div>
         </div>
       </section>
 
       <section class="card hidden" id="exportSection">
-        <h2>Export</h2>
-        <p>Scarica l'export del server e salvalo dove vuoi.</p>
-        <button id="exportBtn" class="primary" disabled>Scarica export</button>
+        <h2 data-i18n="exportTitle">Export</h2>
+        <p data-i18n="exportSubtitle">Scarica l'export del server e salvalo dove vuoi.</p>
+        <button id="exportBtn" class="primary" disabled data-i18n="exportButton">Scarica export</button>
         <div class="status" id="exportStatus"></div>
       </section>
 
       <section class="card hidden" id="backupsSection">
-        <h2>Backups</h2>
-        <p>Elenco dei backup presenti sul server.</p>
+        <h2 data-i18n="backupsTitle">Backups</h2>
+        <p data-i18n="backupsSubtitle">Elenco dei backup presenti sul server.</p>
         <div class="backups-actions">
-          <button id="refreshBackupsBtn" class="primary" disabled>Ricarica lista</button>
+          <button id="refreshBackupsBtn" class="primary" disabled data-i18n="backupsRefreshButton">Ricarica lista</button>
         </div>
         <details id="backupsAccordion" class="backups-accordion">
           <summary>
-            Backup disponibili
+            <span data-i18n="backupsAvailableLabel">Backup disponibili</span>
             <span id="backupsSummaryCount" class="backups-count">0</span>
           </summary>
           <div id="backupsList" class="backups-list">
-            <div class="placeholder">Login per vedere i backup disponibili.</div>
+            <div class="placeholder" data-i18n="loginToViewBackups">Login per vedere i backup disponibili.</div>
           </div>
         </details>
         <div class="status" id="backupsStatus"></div>
       </section>
 
       <section class="card hidden" id="importSection">
-        <h2>Import</h2>
-        <p>Carica il <span class="mono">config.json</span> con chiavi <span class="mono">CHANNELS</span> e <span class="mono">MAPPING</span>.</p>
+        <h2 data-i18n="importTitle">Import</h2>
+        <p data-i18n-html="importSubtitle">Carica il <span class="mono">config.json</span> con chiavi <span class="mono">CHANNELS</span> e <span class="mono">MAPPING</span>.</p>
         <div class="field">
-          <label for="configFile">config.json (vecchio server)</label>
+          <label for="configFile" data-i18n="configFileLabel">config.json (vecchio server)</label>
           <input id="configFile" type="file" accept="application/json" />
         </div>
 
         <div id="importLoading" class="import-loading hidden">
           <div class="spinner" aria-hidden="true"></div>
-          <div>Caricamento mapping...</div>
+          <div data-i18n="mappingLoading">Caricamento mapping...</div>
         </div>
 
         <div id="importBody">
           <div class="associations">
-            <h3>Associazioni servizi</h3>
-            <h5>Servizio Precedente -> Nuovo servizio</h5>
+            <h3 data-i18n="associationsTitle">Associazioni servizi</h3>
+            <h5 data-i18n="associationsSubtitle">Servizio Precedente -> Nuovo servizio</h5>
           <div class="import-keys">
-            <h4>Chiavi da importare</h4>
+            <h4 data-i18n="keysToImportTitle">Chiavi da importare</h4>
             <div id="importKeyList" class="import-key-list">
-              <div class="placeholder">Carica un config.json per selezionare le chiavi.</div>
+              <div class="placeholder" data-i18n="loadConfigToSelectKeys">Carica un config.json per selezionare le chiavi.</div>
             </div>
           </div>
           <div id="associationList" class="association-list">
-            <div class="placeholder">Carica entrambi i mapping per vedere le associazioni.</div>
+            <div class="placeholder" data-i18n="configNeedMappingAndNew">Carica entrambi i mapping per vedere le associazioni.</div>
           </div>
           </div>
 
-          <button id="importBtn" class="primary" disabled>Invia import</button>
+          <button id="importBtn" class="primary" disabled data-i18n="importButton">Invia import</button>
           <div class="status" id="importStatus"></div>
         </div>
       </section>
 
       <section class="card hidden" id="resetSection">
-        <h2>Reset server</h2>
-        <p><strong>ATTENZIONE:</strong> il reset cancella definitivamente tutte le REC presenti sul server.</p>
-        <button id="resetBtn" class="primary" type="button" disabled>Reset server</button>
+        <h2 data-i18n="resetTitle">Reset server</h2>
+        <p data-i18n-html="resetWarning"><strong>ATTENZIONE:</strong> il reset cancella definitivamente tutte le REC presenti sul server.</p>
+        <button id="resetBtn" class="primary" type="button" disabled data-i18n="resetButton">Reset server</button>
         <div class="status" id="resetStatus"></div>
       </section>
 
@@ -145,69 +153,69 @@
       <section class="tool-view hidden" id="artecoSection">
         <header class="header">
           <div>
-            <h1>Convert from Arteco Server</h1>
-            <p>Sezione dedicata alla conversione da server Arteco legacy.</p>
+            <h1 data-i18n="artecoHeaderTitle">Convert from Arteco Server</h1>
+            <p data-i18n="artecoHeaderSubtitle">Sezione dedicata alla conversione da server Arteco legacy.</p>
           </div>
-          <button id="backToHomeFromArtecoBtn" class="secondary nav-back" type="button">Torna indietro</button>
+          <button id="backToHomeFromArtecoBtn" class="secondary nav-back" type="button" data-i18n="backButton">Torna indietro</button>
         </header>
 
         <section class="card hidden" id="artecoLicenseOverviewSection">
-          <h2>Licenze server</h2>
+          <h2 data-i18n="serverLicensesTitle">Licenze server</h2>
           <div id="artecoLicenseOverview" class="license-overview">
-            <div class="placeholder">Fai login per caricare il riepilogo licenze.</div>
+            <div class="placeholder" data-i18n="loginToLoadLicenseOverview">Fai login per caricare il riepilogo licenze.</div>
           </div>
         </section>
 
         <section class="card">
-          <h2>Arteco XML to USS</h2>
-          <p>Carica un file <span class="mono">BaseConfig.xml</span>, analizza le camere trovate e scegli quali inviare al server USS già autenticato.</p>
-          <div class="hint">Percorso di esempio: <span class="mono">/Users/marcodalprato/GitHub/export_import_test_gui/arteco_backup/BaseConfig.xml</span></div>
+          <h2 data-i18n="artecoXmlToUssTitle">Arteco XML to USS</h2>
+          <p data-i18n-html="artecoXmlToUssSubtitle">Carica un file <span class="mono">BaseConfig.xml</span>, analizza le camere trovate e scegli quali inviare al server USS già autenticato.</p>
+          <div class="hint" data-i18n-html="artecoPathHint">Percorso di esempio: <span class="mono">/Users/marcodalprato/GitHub/export_import_test_gui/arteco_backup/BaseConfig.xml</span></div>
 
           <div class="field">
-            <label for="artecoFileInput">Configurazione Arteco XML</label>
+            <label for="artecoFileInput" data-i18n="artecoFileLabel">Configurazione Arteco XML</label>
             <input id="artecoFileInput" type="file" accept=".xml,text/xml,application/xml" />
           </div>
 
           <div class="field">
-            <label for="artecoTargetServiceSelect">Servizio target USS</label>
+            <label for="artecoTargetServiceSelect" data-i18n="artecoTargetServiceLabel">Servizio target USS</label>
             <select id="artecoTargetServiceSelect" disabled>
-              <option value="">Fai login e carica un XML per vedere i servizi</option>
+              <option value="" data-i18n="artecoTargetServiceSelectPrompt">Fai login e carica un XML per vedere i servizi</option>
             </select>
           </div>
 
           <div class="arteco-license-panel">
-            <h3>Licenze disponibili</h3>
+            <h3 data-i18n="availableLicensesTitle">Licenze disponibili</h3>
             <div id="artecoLicenseSummary" class="arteco-license-summary">
-              <div class="placeholder">Fai login per caricare le licenze disponibili.</div>
+              <div class="placeholder" data-i18n="loginToLoadAvailableLicenses">Fai login per caricare le licenze disponibili.</div>
             </div>
             <div class="arteco-license-bulk">
               <div class="field">
-                <label for="artecoBulkLicenseSelect">Assegnazione massiva</label>
+                <label for="artecoBulkLicenseSelect" data-i18n="bulkAssignLabel">Assegnazione massiva</label>
                 <select id="artecoBulkLicenseSelect" disabled>
-                  <option value="">Seleziona licenza</option>
+                  <option value="" data-i18n="selectLicense">Seleziona licenza</option>
                 </select>
               </div>
               <div class="arteco-license-bulk-actions">
-                <button id="artecoApplyLicenseSelectedBtn" class="secondary" type="button">Applica alle selezionate</button>
-                <button id="artecoApplyLicenseMissingBtn" class="ghost" type="button">Applica solo alle senza licenza</button>
+                <button id="artecoApplyLicenseSelectedBtn" class="secondary" type="button" data-i18n="applyToSelectedButton">Applica alle selezionate</button>
+                <button id="artecoApplyLicenseMissingBtn" class="ghost" type="button" data-i18n="applyToMissingButton">Applica solo alle senza licenza</button>
               </div>
             </div>
           </div>
 
           <div class="arteco-toolbar">
-            <button id="artecoSelectEnabledBtn" class="secondary" type="button">Seleziona attive</button>
-            <button id="artecoSelectAllBtn" class="ghost" type="button">Seleziona tutte</button>
-            <button id="artecoSelectNoneBtn" class="ghost" type="button">Deseleziona tutte</button>
+            <button id="artecoSelectEnabledBtn" class="secondary" type="button" data-i18n="selectEnabledButton">Seleziona attive</button>
+            <button id="artecoSelectAllBtn" class="ghost" type="button" data-i18n="selectAllButton">Seleziona tutte</button>
+            <button id="artecoSelectNoneBtn" class="ghost" type="button" data-i18n="selectNoneButton">Deseleziona tutte</button>
             <div id="artecoSelectedCount" class="backups-count">0 / 0</div>
           </div>
 
           <div id="artecoCameraList" class="arteco-camera-list">
-            <div class="placeholder">Carica un file XML per analizzare le camere.</div>
+            <div class="placeholder" data-i18n="artecoLoadXmlToAnalyze">Carica un file XML per analizzare le camere.</div>
           </div>
 
-          <button id="artecoImportBtn" class="primary" disabled>Invia camere a USS</button>
+          <button id="artecoImportBtn" class="primary" disabled data-i18n="artecoImportButton">Invia camere a USS</button>
           <div class="status" id="artecoImportStatus"></div>
-          <div class="hint">Il login è condiviso con la sezione USS. L’invio usa <span class="mono">/api/v2/import</span> con un payload <span class="mono">CHANNELS</span> generato dall’XML Arteco.</div>
+          <div class="hint" data-i18n-html="artecoSharedLoginHint">Il login è condiviso con la sezione USS. L’invio usa <span class="mono">/api/v2/import</span> con un payload <span class="mono">CHANNELS</span> generato dall’XML Arteco.</div>
         </section>
       </section>
     </main>

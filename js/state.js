@@ -1,4 +1,5 @@
 export const state = {
+  language: "it",
   loadedConfig: null,
   loadedFilename: "config.json",
   loadedMappingOld: null,

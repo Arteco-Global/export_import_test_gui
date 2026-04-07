@@ -22,6 +22,7 @@ import {
   downloadBackupRequest,
   exportRequest,
 } from "./api.js";
+import { t } from "./i18n.js";
 import {
   BACKUPS_AUTO_REFRESH_MS,
   BACKUPS_REQUEST_TIMEOUT_MS,
@@ -101,7 +102,7 @@ export function resetAccessToken(message) {
   }
   stopBackupsAutoRefresh();
   state.backupsAutoRefreshDisabled = false;
-  clearBackupsList("Login per vedere i backup disponibili.");
+  clearBackupsList(t("loginToViewBackups"));
   resetAvailableLicenses();
   resetArtecoTargetServices();
   refreshUiState();
@@ -145,11 +146,11 @@ function formatResetResponse(payload) {
   const data = payload?.data || {};
   if (Array.isArray(data.errors) && data.errors.length > 0) {
     const rows = data.errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("");
-    parts.push(`<div>Errori:</div><ul>${rows}</ul>`);
+    parts.push(`<div>${t("resetErrors")}</div><ul>${rows}</ul>`);
   }
 
   if (parts.length === 0) {
-    return payload?.success === true ? "OK" : "Reset fallito.";
+    return payload?.success === true ? "OK" : t("resetFailed");
   }
 
   return parts.join("");
@@ -208,7 +209,7 @@ function validateCameraLicenses(channelsPayload) {
     if (totalCameras > 0) {
       return {
         ok: false,
-        message: "Nessuna licenza disponibile sul nuovo server. Impossibile completare l'import delle telecamere.",
+        message: t("noLicenseNewServer"),
       };
     }
     return { ok: true };
@@ -230,16 +231,16 @@ function validateCameraLicenses(channelsPayload) {
           cameraEntry?.descr ||
           cameraEntry?.camera?.name ||
           cameraEntry?.name ||
-          `Camera ${cameraIndex + 1}`;
+          t("cameraFallback", { index: cameraIndex + 1 });
         return {
           ok: false,
-          message: `Licenza mancante per ${cameraName}. Assegna una licenza a tutte le telecamere prima dell'import.`,
+          message: t("licenseMissingCamera", { camera: cameraName }),
         };
       }
       if (!capacityByType.has(licenseType)) {
         return {
           ok: false,
-          message: `Licenza ${licenseType} non presente sul nuovo server.`,
+          message: t("licenseNotPresentNewServer", { license: licenseType }),
         };
       }
       usage.set(licenseType, (usage.get(licenseType) || 0) + 1);
@@ -251,7 +252,7 @@ function validateCameraLicenses(channelsPayload) {
     if (used > capacity) {
       return {
         ok: false,
-        message: `Licenze insufficienti per ${licenseType}: assegnate ${used}, disponibili ${capacity}.`,
+        message: t("licenseInsufficient", { license: licenseType, used, capacity }),
       };
     }
   }
@@ -287,29 +288,29 @@ function applyCameraLicenseAssignments(channelsPayload) {
 export async function loadAuthServices() {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (!baseUrl) {
-    setStatus(loginStatus, "Inserisci un base URL valido.", true);
+    setStatus(loginStatus, t("baseUrlInvalid"), true);
     return [];
   }
 
-  setStatus(loginStatus, "Caricamento auth service...", false);
+  setStatus(loginStatus, t("authLoading"), false);
 
   try {
     const payload = await fetchAuthServices(baseUrl);
     const services = normalizeAuthServices(payload);
 
     if (services.length === 0) {
-      resetAuthServices("Nessun auth service trovato");
-      setStatus(loginStatus, "Nessun auth service disponibile.", true);
+      resetAuthServices(t("authNoServiceFound"));
+      setStatus(loginStatus, t("authNoServiceAvailable"), true);
       return [];
     }
 
     state.authServices = services;
     renderAuthServices(services);
-    setStatus(loginStatus, "Auth service caricati.");
+    setStatus(loginStatus, t("authLoaded"));
     return services;
   } catch (error) {
-    resetAuthServices("Carica gli auth service");
-    setStatus(loginStatus, `Errore auth service: ${error.message}`, true);
+    resetAuthServices(t("authLoadServices"));
+    setStatus(loginStatus, t("authServiceError", { message: error.message }), true);
     return [];
   } finally {
     refreshUiState();
@@ -322,17 +323,17 @@ export async function handleLogin() {
   const password = passwordInput.value;
 
   if (!baseUrl) {
-    setStatus(loginStatus, "Inserisci un base URL valido.", true);
+    setStatus(loginStatus, t("baseUrlInvalid"), true);
     return;
   }
   if (!username || !password) {
-    setStatus(loginStatus, "Inserisci username e password.", true);
+    setStatus(loginStatus, t("credentialsRequired"), true);
     return;
   }
 
   setLoginLoading(true);
   loginBtn.disabled = true;
-  setStatus(loginStatus, "Login in corso...", false);
+  setStatus(loginStatus, t("loginInProgress"), false);
 
   try {
     let services = state.authServices;
@@ -347,7 +348,7 @@ export async function handleLogin() {
     }
     const authGuid = authServiceSelect.value;
     if (services.length > 1 && !authGuid) {
-      setStatus(loginStatus, "Seleziona un auth service.", true);
+      setStatus(loginStatus, t("loginSelectService"), true);
       return;
     }
 
@@ -358,12 +359,12 @@ export async function handleLogin() {
       payload?.root?.accessToken ||
       "";
     if (!token) {
-      throw new Error("Access token non trovato.");
+      throw new Error(t("accessTokenMissing"));
     }
 
     state.accessToken = token;
     storeAvailableLicenses(payload);
-    setStatus(loginStatus, "Login OK.");
+    setStatus(loginStatus, t("loginOk"));
     state.backupsAutoRefreshDisabled = false;
     startBackupsAutoRefresh();
     handleFetchBackups();
@@ -371,7 +372,7 @@ export async function handleLogin() {
     showHome();
   } catch (error) {
     state.accessToken = "";
-    setStatus(loginStatus, `Errore login: ${error.message}`, true);
+    setStatus(loginStatus, t("loginError", { message: error.message }), true);
   } finally {
     setLoginLoading(false);
     refreshUiState();
@@ -381,24 +382,24 @@ export async function handleLogin() {
 export async function handleExport() {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (!baseUrl) {
-    setStatus(exportStatus, "Inserisci un base URL valido.", true);
+    setStatus(exportStatus, t("baseUrlInvalid"), true);
     return;
   }
   if (!state.accessToken) {
-    setStatus(exportStatus, "Fai login prima di esportare.", true);
+    setStatus(exportStatus, t("loginNeedBeforeExport"), true);
     return;
   }
 
   updateExportState(false);
-  setStatus(exportStatus, "Download in corso...");
+  setStatus(exportStatus, t("exportDownloadInProgress"));
 
   try {
     const blob = await exportRequest(baseUrl, state.accessToken);
     const filename = `export_${new Date().toISOString().slice(0, 10)}.zip`;
     triggerBlobDownload(blob, filename);
-    setStatus(exportStatus, "File scaricato. Controlla la cartella Download.");
+    setStatus(exportStatus, t("exportDownloaded"));
   } catch (error) {
-    setStatus(exportStatus, `Errore download: ${error.message}`, true);
+    setStatus(exportStatus, t("exportDownloadError", { message: error.message }), true);
   } finally {
     refreshUiState();
   }
@@ -407,22 +408,22 @@ export async function handleExport() {
 export async function handleReset() {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (!baseUrl) {
-    setStatus(resetStatus, "Inserisci un base URL valido.", true);
+    setStatus(resetStatus, t("baseUrlInvalid"), true);
     return;
   }
   if (!state.accessToken) {
-    setStatus(resetStatus, "Fai login prima di resettare.", true);
+    setStatus(resetStatus, t("loginNeedBeforeReset"), true);
     return;
   }
 
-  const confirmed = window.confirm("Sei sicuro di voler resettare il server?");
+  const confirmed = window.confirm(t("resetConfirm"));
   if (!confirmed) {
-    setStatus(resetStatus, "Reset annullato.");
+    setStatus(resetStatus, t("resetCanceled"));
     return;
   }
 
   resetBtn.disabled = true;
-  setStatus(resetStatus, "Reset in corso...", false);
+  setStatus(resetStatus, t("resetInProgress"), false);
 
   try {
     const { response, data } = await resetRequest(
@@ -436,16 +437,16 @@ export async function handleReset() {
         setStatus(resetStatus, formatResetResponse(data), true);
         return;
       }
-      throw new Error(`Errore HTTP ${response.status}`);
+      throw new Error(t("httpError", { status: response.status }));
     }
 
     if (data) {
       setStatus(resetStatus, formatResetResponse(data), data.success !== true);
     } else {
-      setStatus(resetStatus, "Reset completato.");
+      setStatus(resetStatus, t("resetCompleted"));
     }
   } catch (error) {
-    setStatus(resetStatus, `Errore reset: ${error.message}`, true);
+    setStatus(resetStatus, t("resetError", { message: error.message }), true);
   } finally {
     refreshUiState();
   }
@@ -458,18 +459,18 @@ export async function handleFetchBackups(isAutoRefresh = false) {
 
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (!baseUrl) {
-    setStatus(backupsStatus, "Inserisci un base URL valido.", true);
+    setStatus(backupsStatus, t("baseUrlInvalid"), true);
     return;
   }
   if (!state.accessToken) {
-    setStatus(backupsStatus, "Fai login prima di leggere i backup.", true);
+    setStatus(backupsStatus, t("loginNeedBeforeBackups"), true);
     return;
   }
 
   if (!isAutoRefresh) {
     refreshBackupsBtn.disabled = true;
   }
-  setStatus(backupsStatus, "Caricamento backup...", false);
+  setStatus(backupsStatus, t("backupsLoading"), false);
 
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), BACKUPS_REQUEST_TIMEOUT_MS);
@@ -480,16 +481,16 @@ export async function handleFetchBackups(isAutoRefresh = false) {
     renderBackupsList(backups, (backup, button) =>
       handleDownloadBackup(backup.timestamp, backup.label, button)
     );
-    setStatus(backupsStatus, "Lista backup aggiornata.");
+    setStatus(backupsStatus, t("backupsUpdated"));
     state.backupsAutoRefreshDisabled = false;
   } catch (error) {
-    clearBackupsList("Errore nel caricamento dei backup.");
+    clearBackupsList(t("backupsLoadError"));
     if (error.name === "AbortError") {
-      setStatus(backupsStatus, "Timeout backup: aggiornamento automatico sospeso.", true);
+      setStatus(backupsStatus, t("backupsTimeout"), true);
       state.backupsAutoRefreshDisabled = true;
       stopBackupsAutoRefresh();
     } else {
-      setStatus(backupsStatus, `Errore backup: ${error.message}`, true);
+      setStatus(backupsStatus, t("backupsError", { message: error.message }), true);
     }
   } finally {
     window.clearTimeout(timeoutId);
@@ -500,31 +501,31 @@ export async function handleFetchBackups(isAutoRefresh = false) {
 export async function handleDownloadBackup(timestamp, label, button) {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (!baseUrl) {
-    setStatus(backupsStatus, "Inserisci un base URL valido.", true);
+    setStatus(backupsStatus, t("baseUrlInvalid"), true);
     return;
   }
   if (!state.accessToken) {
-    setStatus(backupsStatus, "Fai login prima di scaricare.", true);
+    setStatus(backupsStatus, t("loginNeedBeforeDownload"), true);
     return;
   }
   if (!timestamp) {
-    setStatus(backupsStatus, "Timestamp backup non valido.", true);
+    setStatus(backupsStatus, t("backupTimestampInvalid"), true);
     return;
   }
 
   if (button) {
     button.disabled = true;
   }
-  setStatus(backupsStatus, `Download backup ${label || timestamp}...`, false);
+  setStatus(backupsStatus, t("backupDownloadInProgress", { label: label || timestamp }), false);
 
   try {
     const blob = await downloadBackupRequest(baseUrl, state.accessToken, timestamp);
     const safePart = sanitizeFilenamePart(label || timestamp) || "backup_download";
     const filename = safePart.toLowerCase().endsWith(".zip") ? safePart : `${safePart}.zip`;
     triggerBlobDownload(blob, filename);
-    setStatus(backupsStatus, "Backup scaricato. Controlla la cartella Download.");
+    setStatus(backupsStatus, t("backupDownloaded"));
   } catch (error) {
-    setStatus(backupsStatus, `Errore download backup: ${error.message}`, true);
+    setStatus(backupsStatus, t("backupDownloadError", { message: error.message }), true);
   } finally {
     if (button) {
       button.disabled = false;
@@ -536,30 +537,30 @@ export async function handleDownloadBackup(timestamp, label, button) {
 export async function handleFetchMapping() {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (!baseUrl) {
-    setStatus(importStatus, "Inserisci un base URL valido.", true);
+    setStatus(importStatus, t("baseUrlInvalid"), true);
     return;
   }
   if (!state.accessToken) {
-    setStatus(importStatus, "Fai login prima di ottenere il mapping.", true);
+    setStatus(importStatus, t("loginNeedBeforeMapping"), true);
     return;
   }
 
   setImportLoading(true);
   updateImportSummary();
-  setStatus(importStatus, "Richiesta mapping attuale...", false);
+  setStatus(importStatus, t("mappingRequestCurrent"), false);
 
   try {
     state.loadedMappingNew = await fetchMappingRequest(baseUrl, state.accessToken);
     if (state.loadedMappingOld) {
       buildAssociationUI(refreshUiState);
     } else {
-      clearAssociationList("Carica anche il config.json con MAPPING.");
+      clearAssociationList(t("configNeedMappingToo"));
     }
-    setStatus(importStatus, "Mapping nuovo ottenuto.");
+    setStatus(importStatus, t("mappingNewLoaded"));
   } catch (error) {
     state.loadedMappingNew = null;
-    clearAssociationList("Carica il config.json con MAPPING e ottieni quello nuovo.");
-    setStatus(importStatus, `Errore mapping nuovo: ${error.message}`, true);
+    clearAssociationList(t("configNeedMappingAndNew"));
+    setStatus(importStatus, t("mappingNewError", { message: error.message }), true);
   } finally {
     setImportLoading(false);
     updateImportSummary();
@@ -576,7 +577,7 @@ export function handleConfigFile(event) {
     resetCameraLicenseAssignments();
     clearImportKeyList();
     state.associationSelections.clear();
-    clearAssociationList("Carica il config.json con MAPPING e ottieni quello nuovo.");
+    clearAssociationList(t("configNeedMappingAndNew"));
     updateImportSummary();
     setImportLoading(false);
     refreshUiState();
@@ -584,7 +585,7 @@ export function handleConfigFile(event) {
   }
 
   state.loadedFilename = file.name || "config.json";
-  setStatus(importStatus, "Caricamento config...", false);
+  setStatus(importStatus, t("configLoading"), false);
 
   readConfigFile(file)
     .then((payload) => {
@@ -597,14 +598,14 @@ export function handleConfigFile(event) {
       updateImportSummary();
 
       if (!state.loadedConfig) {
-        setStatus(importStatus, "CHANNELS non trovato nel config.json.", true);
+        setStatus(importStatus, t("channelsNotFound"), true);
         refreshUiState();
         return;
       }
 
       if (!state.loadedMappingOld) {
-        setStatus(importStatus, "MAPPING non trovato nel config.json.", true);
-        clearAssociationList("Serve un MAPPING valido nel config.json.");
+        setStatus(importStatus, t("mappingNotFound"), true);
+        clearAssociationList(t("configNeedValidMapping"));
         updateImportSummary();
         refreshUiState();
         return;
@@ -613,10 +614,10 @@ export function handleConfigFile(event) {
       if (state.loadedMappingNew) {
         buildAssociationUI(refreshUiState);
       } else {
-        clearAssociationList("Ottieni il mapping nuovo dal server.");
+        clearAssociationList(t("mappingFetchFromServer"));
       }
 
-      setStatus(importStatus, "config.json caricato. Ottieni il mapping nuovo.");
+      setStatus(importStatus, t("configLoadedNeedMapping"));
       updateImportSummary();
       refreshUiState();
 
@@ -633,7 +634,7 @@ export function handleConfigFile(event) {
       clearImportKeyList();
       updateImportSummary();
       setImportLoading(false);
-      setStatus(importStatus, `Errore JSON: ${error.message}`, true);
+      setStatus(importStatus, t("configJsonError", { message: error.message }), true);
       refreshUiState();
     });
 }
@@ -641,28 +642,28 @@ export function handleConfigFile(event) {
 export async function handleImport() {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (!baseUrl) {
-    setStatus(importStatus, "Inserisci un base URL valido.", true);
+    setStatus(importStatus, t("baseUrlInvalid"), true);
     return;
   }
   if (!state.accessToken) {
-    setStatus(importStatus, "Fai login prima di importare.", true);
+    setStatus(importStatus, t("loginNeedBeforeImport"), true);
     return;
   }
   if (!state.loadedConfig) {
-    setStatus(importStatus, "Carica prima un config.json.", true);
+    setStatus(importStatus, t("configLoadFirst"), true);
     return;
   }
   if (!state.loadedMappingOld || !state.loadedMappingNew) {
-    setStatus(importStatus, "Carica il config.json con MAPPING e ottieni quello nuovo.", true);
+    setStatus(importStatus, t("configNeedMappingAndNew"), true);
     return;
   }
   if (!areAssociationsComplete()) {
-    setStatus(importStatus, "Completa tutte le associazioni.", true);
+    setStatus(importStatus, t("associationsIncomplete"), true);
     return;
   }
 
   updateImportState(false);
-  setStatus(importStatus, "Invio import in corso...");
+  setStatus(importStatus, t("importInProgress"));
 
   try {
     const payloadCopy = JSON.parse(JSON.stringify(state.loadedPayloadByKey));
@@ -698,16 +699,16 @@ export async function handleImport() {
         setStatus(importStatus, formatImportResponse(data), true);
         return;
       }
-      throw new Error(`Errore HTTP ${response.status}`);
+      throw new Error(t("httpError", { status: response.status }));
     }
 
     if (data) {
       setStatus(importStatus, formatImportResponse(data), data.success !== true);
     } else {
-      setStatus(importStatus, "Import fallito.", true);
+      setStatus(importStatus, t("importFailed"), true);
     }
   } catch (error) {
-    setStatus(importStatus, `Errore import: ${error.message}`, true);
+    setStatus(importStatus, t("importError", { message: error.message }), true);
   } finally {
     refreshUiState();
   }
@@ -717,15 +718,15 @@ export function handleBaseUrlChange() {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (baseUrl !== state.lastBaseUrl) {
     state.lastBaseUrl = baseUrl;
-    resetAccessToken("Login da rifare: base URL cambiato.");
-    resetAuthServices("Carica gli auth service");
+    resetAccessToken(t("loginNeedRedoBaseUrl"));
+    resetAuthServices(t("authLoadServices"));
     resetArtecoTargetServices();
   }
   refreshUiState();
 }
 
 export function handleCredentialChange() {
-  resetAccessToken("Login da rifare: credenziali cambiate.");
+  resetAccessToken(t("loginNeedRedoCreds"));
   refreshUiState();
 }
 

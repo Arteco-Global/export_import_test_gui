@@ -11,6 +11,7 @@ import {
   baseUrlInput,
 } from "./dom.js";
 import { fetchMappingRequest, importRequest } from "./api.js";
+import { t } from "./i18n.js";
 import { extractServices, formatImportResponse } from "./import-helpers.js";
 import { state } from "./state.js";
 import { normalizeBaseUrl, setStatus } from "./utils.js";
@@ -81,7 +82,7 @@ function derivePorts(url, host) {
 }
 
 function getSourceTypeLabel(type) {
-  return SOURCE_TYPE_LABELS[type] || `Tipo ${type}`;
+  return SOURCE_TYPE_LABELS[type] || t("typeWithNumber", { type });
 }
 
 function parseArtecoVideoSource(node, index) {
@@ -91,7 +92,7 @@ function parseArtecoVideoSource(node, index) {
   const subStream = sourceParams?.querySelector("sub-stream");
 
   const sourceType = parseNumber(attrOrEmpty(sourceCfg, "type"), -1);
-  const name = attrOrEmpty(node, "descr") || `Camera ${index + 1}`;
+  const name = attrOrEmpty(node, "descr") || t("cameraFallback", { index: index + 1 });
   const url = attrOrEmpty(sourceParams, "urladdr");
   const host = attrOrEmpty(sourceParams, "addr");
   const username = attrOrEmpty(sourceParams, "user");
@@ -140,7 +141,7 @@ export function parseArtecoXml(xmlText) {
   const doc = parser.parseFromString(xmlText, "application/xml");
   const parseError = doc.querySelector("parsererror");
   if (parseError) {
-    throw new Error(textOrEmpty(parseError) || "XML non valido.");
+    throw new Error(textOrEmpty(parseError) || t("artecoXmlInvalid"));
   }
 
   const sources = Array.from(doc.querySelectorAll("video-source"));
@@ -195,12 +196,12 @@ export function parseArtecoXml(xmlText) {
 function buildArtecoCameraDetails(camera) {
   if (camera.excludedByGroup) {
     const groupLabel = camera.groupName || camera.groupId || "NVR";
-    return `Esclusa dall'import: gruppo ${groupLabel}`;
+    return t("artecoExcludedByGroup", { group: groupLabel });
   }
 
   const parts = [
     camera.vendor,
-    camera.host || camera.url || "endpoint non disponibile",
+    camera.host || camera.url || t("artecoEndpointUnavailable"),
   ];
   if (camera.username) {
     parts.push(`user ${camera.username}`);
@@ -402,13 +403,13 @@ function hasLicenseCapacityForCamera(licenseType, cameraId) {
 function validateSelectedCameraLicenses() {
   const selectedCameras = getSelectedArtecoCameras();
   if (selectedCameras.length === 0) {
-    return { ok: false, message: "Seleziona almeno una camera da inviare." };
+    return { ok: false, message: t("artecoSelectAtLeastOneToSend") };
   }
 
   for (const camera of selectedCameras) {
     const licenseType = state.artecoLicenseAssignments.get(camera.artecoId);
     if (!licenseType) {
-      return { ok: false, message: `Seleziona una licenza per la camera "${camera.name}".` };
+      return { ok: false, message: t("artecoSelectLicenseForCamera", { camera: camera.name }) };
     }
   }
 
@@ -418,7 +419,11 @@ function validateSelectedCameraLicenses() {
     if (used > license.availableChannels) {
       return {
         ok: false,
-        message: `Licenze insufficienti per ${license.type}: assegnate ${used}, disponibili ${license.availableChannels}.`,
+        message: t("licenseInsufficient", {
+          license: license.type,
+          used,
+          capacity: license.availableChannels,
+        }),
       };
     }
   }
@@ -432,7 +437,7 @@ function renderArtecoLicenseSummary() {
   if (state.availableLicenses.length === 0) {
     const placeholder = document.createElement("div");
     placeholder.className = "placeholder";
-    placeholder.textContent = "Fai login per caricare le licenze disponibili.";
+    placeholder.textContent = t("loginToLoadAvailableLicenses");
     artecoLicenseSummary.appendChild(placeholder);
     return;
   }
@@ -454,9 +459,12 @@ function renderArtecoLicenseSummary() {
     };
     const count = document.createElement("div");
     count.className = "arteco-license-count";
-    count.textContent =
-      `${Math.max(counters.total - counters.used, 0)} libere / ${counters.total}` +
-      ` (provider ${counters.providerTotal}, allocate ${counters.allocated})`;
+    count.textContent = t("providerAllocatedText", {
+      free: Math.max(counters.total - counters.used, 0),
+      total: counters.total,
+      provider: counters.providerTotal,
+      allocated: counters.allocated,
+    });
 
     item.appendChild(type);
     item.appendChild(count);
@@ -469,7 +477,7 @@ function renderArtecoBulkLicenseOptions() {
 
   const placeholder = document.createElement("option");
   placeholder.value = "";
-  placeholder.textContent = "Seleziona licenza";
+  placeholder.textContent = t("selectLicense");
   artecoBulkLicenseSelect.appendChild(placeholder);
 
   const availability = getLicenseAvailabilityMap();
@@ -485,7 +493,11 @@ function renderArtecoBulkLicenseOptions() {
 
     const option = document.createElement("option");
     option.value = license.type;
-    option.textContent = `${license.type} (${remaining} libere / ${license.availableChannels})`;
+    option.textContent = t("licenseOption", {
+      license: license.type,
+      remaining,
+      total: license.availableChannels,
+    });
     artecoBulkLicenseSelect.appendChild(option);
   });
 
@@ -502,8 +514,8 @@ function renderArtecoTargetServices() {
   placeholder.value = "";
   placeholder.textContent =
     state.artecoTargetServices.length === 0
-      ? "Nessun servizio target disponibile"
-      : "Seleziona servizio target";
+      ? t("targetServiceNone")
+      : t("targetServiceSelect");
   artecoTargetServiceSelect.appendChild(placeholder);
 
   state.artecoTargetServices.forEach((service) => {
@@ -557,10 +569,10 @@ function createArtecoCameraRow(camera) {
     camera.excludedByGroup ? "is-excluded" : camera.enabled ? "is-enabled" : "is-disabled"
   }`;
   badge.textContent = camera.excludedByGroup
-    ? "esclusa"
+    ? t("excluded")
     : camera.enabled
-      ? "attiva"
-      : "disattiva";
+      ? t("enabled")
+      : t("disabled");
 
   titleRow.appendChild(title);
   titleRow.appendChild(badge);
@@ -572,14 +584,14 @@ function createArtecoCameraRow(camera) {
   const subMeta = document.createElement("div");
   subMeta.className = "arteco-camera-submeta";
   subMeta.textContent = camera.excludedByGroup
-    ? `ID ${camera.artecoId} • gruppo ${camera.groupName || camera.groupId || "n/d"}`
-    : `ID ${camera.artecoId} • idx ${camera.channelIndex || "n/d"} • ${camera.rtspViaTcp ? "RTSP/TCP" : "RTSP/UDP-auto"}`;
+    ? `ID ${camera.artecoId} • ${t("group")} ${camera.groupName || camera.groupId || t("notAvailableShort")}`
+    : `ID ${camera.artecoId} • idx ${camera.channelIndex || t("notAvailableShort")} • ${camera.rtspViaTcp ? "RTSP/TCP" : t("rtspUdpAuto")}`;
 
   const licenseField = document.createElement("div");
   licenseField.className = "arteco-camera-license";
 
   const licenseLabel = document.createElement("span");
-  licenseLabel.textContent = "Licenza";
+  licenseLabel.textContent = t("license");
 
   const licenseSelect = document.createElement("select");
   licenseSelect.disabled =
@@ -589,7 +601,7 @@ function createArtecoCameraRow(camera) {
 
   const placeholder = document.createElement("option");
   placeholder.value = "";
-  placeholder.textContent = "Seleziona licenza";
+  placeholder.textContent = t("selectLicense");
   licenseSelect.appendChild(placeholder);
 
   const availability = getLicenseAvailabilityMap();
@@ -607,7 +619,11 @@ function createArtecoCameraRow(camera) {
 
     const option = document.createElement("option");
     option.value = license.type;
-    option.textContent = `${license.type} (${Math.max(remaining, 0)} libere / ${license.availableChannels})`;
+    option.textContent = t("licenseOption", {
+      license: license.type,
+      remaining: Math.max(remaining, 0),
+      total: license.availableChannels,
+    });
     licenseSelect.appendChild(option);
   });
 
@@ -618,7 +634,7 @@ function createArtecoCameraRow(camera) {
     if (nextValue && !hasLicenseCapacityForCamera(nextValue, camera.artecoId)) {
       setStatus(
         artecoImportStatus,
-        `Licenze insufficienti per ${nextValue}. Riduci le assegnazioni o scegli un'altra licenza.`,
+        t("artecoInsufficientLicenseReduce", { license: nextValue }),
         true
       );
       licenseSelect.value = getSelectedCameraLicense(camera.artecoId);
@@ -653,7 +669,7 @@ function renderArtecoCameraList() {
   if (state.artecoCameras.length === 0) {
     const placeholder = document.createElement("div");
     placeholder.className = "placeholder";
-    placeholder.textContent = "Carica un file XML per analizzare le camere.";
+    placeholder.textContent = t("artecoLoadXmlToAnalyze");
     artecoCameraList.appendChild(placeholder);
     return;
   }
@@ -671,7 +687,7 @@ function renderArtecoCameraList() {
 
   const groups = new Map();
   excludedCameras.forEach((camera) => {
-    const key = camera.groupName || camera.groupId || "Gruppo escluso";
+    const key = camera.groupName || camera.groupId || t("artecoExcludedGroupFallback");
     if (!groups.has(key)) {
       groups.set(key, []);
     }
@@ -684,7 +700,7 @@ function renderArtecoCameraList() {
 
     const header = document.createElement("summary");
     header.className = "arteco-group-header";
-    header.textContent = `Al momento l'import degli NVR non e' supportato: ${groupLabel}`;
+    header.textContent = t("artecoNvrUnsupported", { group: groupLabel });
 
     const body = document.createElement("div");
     body.className = "arteco-group-body";
@@ -758,7 +774,7 @@ function buildArtecoImportPayload() {
       cameraServices: [
         {
           serviceGuid: selectedService?.serviceGuid || "",
-          serviceName: selectedService?.serviceName || "Arteco Import",
+          serviceName: selectedService?.serviceName || t("artecoImportLabel"),
           serviceType: selectedService?.serviceType || "CameraService",
           cameras: selectedCameras.map((camera, index) =>
             buildArtecoImportCamera(camera, index, selectedService?.serviceGuid || "")
@@ -803,7 +819,7 @@ export function clearArtecoState() {
   state.artecoLicenseAssignments.clear();
   state.artecoBulkLicenseType = "";
   resetArtecoTargetServices();
-  artecoCameraList.innerHTML = '<div class="placeholder">Carica un file XML per analizzare le camere.</div>';
+  artecoCameraList.innerHTML = `<div class="placeholder">${t("artecoLoadXmlToAnalyze")}</div>`;
   artecoSelectedCount.textContent = "0 / 0";
   setStatus(artecoImportStatus, "");
   refreshArtecoUiState();
@@ -813,7 +829,7 @@ export function resetArtecoTargetServices() {
   state.artecoTargetServices = [];
   state.artecoTargetServiceGuid = "";
   state.artecoServerMapping = null;
-  artecoTargetServiceSelect.innerHTML = '<option value="">Fai login e carica un XML per vedere i servizi</option>';
+  artecoTargetServiceSelect.innerHTML = `<option value="">${t("artecoTargetServiceSelectPrompt")}</option>`;
   refreshArtecoUiState();
 }
 
@@ -860,7 +876,7 @@ export async function syncArtecoTargetServices() {
   try {
     await ensureArtecoTargetServices();
   } catch (error) {
-    setStatus(artecoImportStatus, `Errore servizi target: ${error.message}`, true);
+    setStatus(artecoImportStatus, t("artecoTargetServiceError", { message: error.message }), true);
   }
 }
 
@@ -892,7 +908,7 @@ export function handleArtecoFile(event) {
   }
 
   state.artecoFilename = file.name;
-  setStatus(artecoImportStatus, "Analisi XML Arteco in corso...", false);
+  setStatus(artecoImportStatus, t("artecoXmlAnalyzing"), false);
 
   file
     .text()
@@ -911,12 +927,12 @@ export function handleArtecoFile(event) {
       const importableCount = cameras.filter((camera) => !camera.excludedByGroup).length;
 
       if (cameras.length === 0) {
-        setStatus(artecoImportStatus, "Nessuna camera trovata nel file XML.", true);
+        setStatus(artecoImportStatus, t("artecoNoCameraInXml"), true);
       } else {
-        const excludedText = excludedCount > 0 ? `, ${excludedCount} escluse (NVR)` : "";
+        const excludedText = excludedCount > 0 ? t("artecoExcludedNvrSuffix", { count: excludedCount }) : "";
         setStatus(
           artecoImportStatus,
-          `Analisi completata: ${importableCount} camere importabili${excludedText}.`
+          t("artecoAnalysisCompleted", { importable: importableCount, excluded: excludedText })
         );
       }
 
@@ -928,30 +944,30 @@ export function handleArtecoFile(event) {
     })
     .catch((error) => {
       clearArtecoState();
-      setStatus(artecoImportStatus, `Errore XML Arteco: ${error.message}`, true);
+      setStatus(artecoImportStatus, t("artecoXmlError", { message: error.message }), true);
     });
 }
 
 export async function handleArtecoImport() {
   const baseUrl = normalizeBaseUrl(baseUrlInput.value);
   if (!baseUrl) {
-    setStatus(artecoImportStatus, "Inserisci un base URL valido nella sezione USS.", true);
+    setStatus(artecoImportStatus, t("baseUrlInvalidUss"), true);
     return;
   }
   if (!state.accessToken) {
-    setStatus(artecoImportStatus, "Fai login prima di inviare le camere.", true);
+    setStatus(artecoImportStatus, t("loginNeedBeforeSendCameras"), true);
     return;
   }
   if (state.artecoCameras.length === 0) {
-    setStatus(artecoImportStatus, "Carica prima un file XML Arteco.", true);
+    setStatus(artecoImportStatus, t("artecoLoadXmlFirst"), true);
     return;
   }
   if (state.artecoSelectedCameraIds.size === 0) {
-    setStatus(artecoImportStatus, "Seleziona almeno una camera da inviare.", true);
+    setStatus(artecoImportStatus, t("artecoSelectAtLeastOneToSend"), true);
     return;
   }
   if (state.availableLicenses.length === 0) {
-    setStatus(artecoImportStatus, "Nessuna licenza disponibile dal server.", true);
+    setStatus(artecoImportStatus, t("noLicenseAvailableFromServer"), true);
     return;
   }
 
@@ -959,13 +975,13 @@ export async function handleArtecoImport() {
     try {
       await ensureArtecoTargetServices();
     } catch (error) {
-      setStatus(artecoImportStatus, `Errore servizi target: ${error.message}`, true);
+      setStatus(artecoImportStatus, t("artecoTargetServiceError", { message: error.message }), true);
       return;
     }
   }
 
   if (!state.artecoTargetServiceGuid) {
-    setStatus(artecoImportStatus, "Seleziona un servizio target USS.", true);
+    setStatus(artecoImportStatus, t("artecoSelectTargetService"), true);
     return;
   }
 
@@ -976,7 +992,7 @@ export async function handleArtecoImport() {
   }
 
   artecoImportBtn.disabled = true;
-  setStatus(artecoImportStatus, "Invio camere Arteco in corso...", false);
+  setStatus(artecoImportStatus, t("artecoSendingInProgress"), false);
 
   try {
     const payload = buildArtecoImportPayload();
@@ -987,16 +1003,16 @@ export async function handleArtecoImport() {
         setStatus(artecoImportStatus, formatImportResponse(data), true);
         return;
       }
-      throw new Error(`Errore HTTP ${response.status}`);
+      throw new Error(t("httpError", { status: response.status }));
     }
 
     if (data) {
       setStatus(artecoImportStatus, formatImportResponse(data), data.success !== true);
     } else {
-      setStatus(artecoImportStatus, "Camere inviate.");
+      setStatus(artecoImportStatus, t("artecoSent"));
     }
   } catch (error) {
-    setStatus(artecoImportStatus, `Errore import Arteco: ${error.message}`, true);
+    setStatus(artecoImportStatus, t("artecoImportError", { message: error.message }), true);
   } finally {
     refreshArtecoUiState();
   }
@@ -1009,7 +1025,7 @@ export function handleArtecoBulkLicenseChange(event) {
 
 function applyLicenseToCameraSet(cameraIds, licenseType, skipAssigned) {
   if (!licenseType) {
-    setStatus(artecoImportStatus, "Seleziona prima una licenza da applicare.", true);
+    setStatus(artecoImportStatus, t("artecoSelectLicenseBeforeApply"), true);
     return;
   }
 
@@ -1034,14 +1050,14 @@ function applyLicenseToCameraSet(cameraIds, licenseType, skipAssigned) {
   if (appliedCount === 0) {
     setStatus(
       artecoImportStatus,
-      `Nessuna camera aggiornata: licenze ${licenseType} insufficienti o gia' assegnate.`,
+      t("artecoNoCameraUpdated", { license: licenseType }),
       true
     );
   } else {
-    const suffix = skippedCount > 0 ? `, ${skippedCount} saltate` : "";
+    const suffix = skippedCount > 0 ? t("artecoSkippedSuffix", { count: skippedCount }) : "";
     setStatus(
       artecoImportStatus,
-      `Licenza ${licenseType} applicata a ${appliedCount} camere${suffix}.`,
+      t("artecoLicenseApplied", { license: licenseType, count: appliedCount, suffix }),
       false
     );
   }
@@ -1052,7 +1068,7 @@ function applyLicenseToCameraSet(cameraIds, licenseType, skipAssigned) {
 export function handleArtecoApplyLicenseSelected() {
   const selectedIds = Array.from(state.artecoSelectedCameraIds);
   if (selectedIds.length === 0) {
-    setStatus(artecoImportStatus, "Seleziona almeno una camera.", true);
+    setStatus(artecoImportStatus, t("artecoSelectAtLeastOneCamera"), true);
     return;
   }
   applyLicenseToCameraSet(selectedIds, state.artecoBulkLicenseType, false);
@@ -1061,7 +1077,7 @@ export function handleArtecoApplyLicenseSelected() {
 export function handleArtecoApplyLicenseMissing() {
   const selectedIds = Array.from(state.artecoSelectedCameraIds);
   if (selectedIds.length === 0) {
-    setStatus(artecoImportStatus, "Seleziona almeno una camera.", true);
+    setStatus(artecoImportStatus, t("artecoSelectAtLeastOneCamera"), true);
     return;
   }
   applyLicenseToCameraSet(selectedIds, state.artecoBulkLicenseType, true);

@@ -1,4 +1,5 @@
 import { IMPORT_KEYS } from "./constants.js";
+import { t } from "./i18n.js";
 import { isImportKeyAllowed, escapeHtml } from "./utils.js";
 
 export function readConfigFile(file) {
@@ -11,7 +12,7 @@ export function readConfigFile(file) {
         reject(error);
       }
     };
-    reader.onerror = () => reject(reader.error || new Error("Errore di lettura"));
+    reader.onerror = () => reject(reader.error || new Error(t("readError")));
     reader.readAsText(file);
   });
 }
@@ -124,7 +125,7 @@ export function getCameraDisplayName(cameraEntry, index = 0) {
     camera?.title ||
     camera?.id ||
     camera?.guid ||
-    `Camera ${index + 1}`
+    t("cameraFallback", { index: index + 1 })
   );
 }
 
@@ -181,7 +182,7 @@ export function getCameraList(service) {
       if (item && typeof item === "object") {
         return getCameraDisplayName(item, index);
       }
-      return `Camera ${index + 1}`;
+      return t("cameraFallback", { index: index + 1 });
     });
   }
 
@@ -217,9 +218,9 @@ export function getMappingList(payload) {
         if (name && guid) {
           return `${name} (${guid})`;
         }
-        return name || type || guid || `Servizio ${index + 1}`;
+        return name || type || guid || `Service ${index + 1}`;
       }
-      return `Servizio ${index + 1}`;
+      return `Service ${index + 1}`;
     });
   }
 
@@ -276,7 +277,7 @@ export function applyGuidMapToConfig(config, guidMap) {
 
 export function formatImportResponse(payload) {
   const parts = [];
-  const message = payload.message || (payload.success === true ? "OK" : "Import fallito.");
+  const message = payload.message || (payload.success === true ? "OK" : t("importFailed"));
   parts.push(`<div>${escapeHtml(message)}</div>`);
 
   const data = payload.data || {};
@@ -285,29 +286,27 @@ export function formatImportResponse(payload) {
     const rows = data.associationResults
       .map(
         (item) =>
-          `<li>${escapeHtml(item.type || "associazione")}: ${escapeHtml(
-            item.message || "errore"
+          `<li>${escapeHtml(item.type || t("associationType"))}: ${escapeHtml(
+            item.message || t("genericError")
           )}</li>`
       )
       .join("");
-    parts.push(`<div>Associazioni:</div><ul>${rows}</ul>`);
+    parts.push(`<div>${t("associations")}</div><ul>${rows}</ul>`);
   }
 
   if (Array.isArray(data.userResults) && data.userResults.length > 0) {
     const rows = data.userResults
       .map(
         (item) =>
-          `<li>Utente: ${escapeHtml(item.message || "errore")} (${escapeHtml(
-            item.serviceGuid || "N/D"
-          )})</li>`
+          `<li>${escapeHtml(t("userResult", { message: item.message || t("genericError"), serviceGuid: item.serviceGuid || t("nd") }))}</li>`
       )
       .join("");
-    parts.push(`<div>Utenti:</div><ul>${rows}</ul>`);
+    parts.push(`<div>${t("users")}</div><ul>${rows}</ul>`);
   }
 
   if (Array.isArray(data.errors) && data.errors.length > 0) {
     const rows = data.errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("");
-    parts.push(`<div>Errori:</div><ul>${rows}</ul>`);
+    parts.push(`<div>${t("resetErrors")}</div><ul>${rows}</ul>`);
   }
 
   return parts.join("");

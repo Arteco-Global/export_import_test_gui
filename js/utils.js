@@ -1,4 +1,5 @@
 import { BLOCKED_IMPORT_KEYS } from "./constants.js";
+import { getLanguage, t } from "./i18n.js";
 
 export function isImportKeyAllowed(key) {
   return !BLOCKED_IMPORT_KEYS.has(String(key).toUpperCase());
@@ -29,22 +30,25 @@ export function formatDateTime(date) {
 export function formatRelativeTime(date) {
   const diffMs = Date.now() - date.getTime();
   if (!Number.isFinite(diffMs)) {
-    return "tempo non disponibile";
+    return t("backupTimeUnavailable");
   }
   const diffSeconds = Math.max(0, Math.floor(diffMs / 1000));
   if (diffSeconds < 60) {
-    return "meno di un minuto fa";
+    return t("lessThanMinuteAgo");
   }
   const diffMinutes = Math.floor(diffSeconds / 60);
   if (diffMinutes < 60) {
-    return `${diffMinutes} minut${diffMinutes === 1 ? "o" : "i"} fa`;
+    const suffix = getLanguage() === "en" ? (diffMinutes === 1 ? "" : "s") : (diffMinutes === 1 ? "o" : "i");
+    return t("minutesAgo", { count: diffMinutes, suffix });
   }
   const diffHours = Math.floor(diffMinutes / 60);
   if (diffHours < 24) {
-    return `${diffHours} or${diffHours === 1 ? "a" : "e"} fa`;
+    const suffix = getLanguage() === "en" ? (diffHours === 1 ? "" : "s") : (diffHours === 1 ? "a" : "e");
+    return t("hoursAgo", { count: diffHours, suffix });
   }
   const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} giorn${diffDays === 1 ? "o" : "i"} fa`;
+  const suffix = getLanguage() === "en" ? (diffDays === 1 ? "" : "s") : (diffDays === 1 ? "o" : "i");
+  return t("daysAgo", { count: diffDays, suffix });
 }
 
 export function escapeHtml(value) {

@@ -28,6 +28,22 @@ body {
   gap: 20px;
 }
 
+.language-switch {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.language-switch label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.language-switch select {
+  min-width: 90px;
+}
+
 .tool-view {
   display: grid;
   gap: 20px;

@@ -29,6 +29,7 @@ import {
   artecoSection,
 } from "./dom.js";
 import { IMPORT_KEYS } from "./constants.js";
+import { t } from "./i18n.js";
 import { state } from "./state.js";
 import {
   formatDateTime,
@@ -113,7 +114,7 @@ export function resetAuthServices(message) {
   authServiceSelect.innerHTML = "";
   const option = document.createElement("option");
   option.value = "";
-  option.textContent = message || "Carica gli auth service";
+  option.textContent = message || t("authLoadServices");
   authServiceSelect.appendChild(option);
 }
 
@@ -121,7 +122,7 @@ export function renderAuthServices(services) {
   authServiceSelect.innerHTML = "";
   const placeholder = document.createElement("option");
   placeholder.value = "";
-  placeholder.textContent = "Seleziona auth service";
+  placeholder.textContent = t("authSelectService");
   authServiceSelect.appendChild(placeholder);
 
   services.forEach((service) => {
@@ -162,7 +163,7 @@ function renderLicenseOverview(container) {
   if (state.availableLicenses.length === 0) {
     const placeholder = document.createElement("div");
     placeholder.className = "placeholder";
-    placeholder.textContent = "Fai login per caricare il riepilogo licenze.";
+    placeholder.textContent = t("loginToLoadLicenseOverview");
     container.appendChild(placeholder);
     return;
   }
@@ -181,9 +182,9 @@ function renderLicenseOverview(container) {
   stats.className = "license-overview-stats";
 
   [
-    { label: "Totali provider", value: totals.provider },
-    { label: "Gia' allocate", value: totals.allocated },
-    { label: "Disponibili", value: totals.available },
+    { label: t("providerTotals"), value: totals.provider },
+    { label: t("alreadyAllocated"), value: totals.allocated },
+    { label: t("available"), value: totals.available },
   ].forEach((item) => {
     const stat = document.createElement("div");
     stat.className = "license-overview-stat";
@@ -214,9 +215,11 @@ function renderLicenseOverview(container) {
 
     const count = document.createElement("div");
     count.className = "license-overview-count";
-    count.textContent =
-      `${license.availableChannels} disponibili / ${license.channels} totali` +
-      ` (${license.allocatedChannels || 0} allocate)`;
+    count.textContent = t("availableTotalAllocated", {
+      available: license.availableChannels,
+      total: license.channels,
+      allocated: license.allocatedChannels || 0,
+    });
 
     row.appendChild(type);
     row.appendChild(count);
@@ -324,15 +327,15 @@ export function formatBackupLabel(backup) {
   const dateText =
     parsed && !Number.isNaN(parsed.getTime()) ? formatDateTime(parsed) : backup.label;
   const relative =
-    parsed && !Number.isNaN(parsed.getTime()) ? formatRelativeTime(parsed) : "tempo non disponibile";
-  return `${dateText} (backup di ${relative})`;
+    parsed && !Number.isNaN(parsed.getTime()) ? formatRelativeTime(parsed) : t("backupTimeUnavailable");
+  return t("backupOfRelative", { dateText, relative });
 }
 
 export function renderBackupsList(backups, onDownload) {
   backupsList.innerHTML = "";
 
   if (backups.length === 0) {
-    clearBackupsList("Nessun backup disponibile.");
+    clearBackupsList(t("noBackupsAvailable"));
     return;
   }
 
@@ -350,7 +353,7 @@ export function renderBackupsList(backups, onDownload) {
 
     const button = document.createElement("button");
     button.className = "primary";
-    button.textContent = "Download";
+    button.textContent = t("download");
     button.addEventListener("click", () => onDownload(backup, button));
 
     actions.appendChild(button);
@@ -381,7 +384,7 @@ export function renderImportKeyOptions(payloadByKey, onChange) {
   if (keysAvailable.length === 0) {
     const placeholder = document.createElement("div");
     placeholder.className = "placeholder";
-    placeholder.textContent = "Nessuna chiave trovata nel config.json.";
+    placeholder.textContent = t("noKeysFound");
     importKeyList.appendChild(placeholder);
     return;
   }
@@ -462,7 +465,7 @@ export function renderImportKeyOptions(payloadByKey, onChange) {
 
 export function clearImportKeyList() {
   state.selectedImportKeys.clear();
-  importKeyList.innerHTML = '<div class="placeholder">Carica un config.json per selezionare le chiavi.</div>';
+  importKeyList.innerHTML = `<div class="placeholder">${t("loadConfigToSelectKeys")}</div>`;
 }
 
 export function clearAssociationList(message) {
@@ -507,7 +510,7 @@ function renderCameraLicenseControls(serviceGuid, service, onChange) {
 
   const title = document.createElement("div");
   title.className = "association-cameras-title";
-  title.textContent = `Licenze telecamere (${cameraEntries.length})`;
+  title.textContent = t("cameraLicensesCount", { count: cameraEntries.length });
   block.appendChild(title);
 
   cameraEntries.forEach((cameraEntry, cameraIndex) => {
@@ -531,7 +534,7 @@ function renderCameraLicenseControls(serviceGuid, service, onChange) {
 
     const source = document.createElement("div");
     source.className = "association-camera-source-license";
-    source.textContent = `Licenza origine: ${sourceLicense || "nessuna"}`;
+    source.textContent = t("sourceLicense", { license: sourceLicense || t("none") });
 
     details.appendChild(name);
     details.appendChild(source);
@@ -542,7 +545,7 @@ function renderCameraLicenseControls(serviceGuid, service, onChange) {
     if (state.availableLicenses.length === 0) {
       const unavailableOption = document.createElement("option");
       unavailableOption.value = "";
-      unavailableOption.textContent = "Nessuna licenza disponibile dal server";
+      unavailableOption.textContent = t("noLicenseAvailableFromServer");
       select.appendChild(unavailableOption);
     }
 
@@ -553,7 +556,11 @@ function renderCameraLicenseControls(serviceGuid, service, onChange) {
         (license.type === currentLicense ? 1 : 0);
       const option = document.createElement("option");
       option.value = license.type;
-      option.textContent = `${license.type} (${Math.max(remaining, 0)} libere / ${license.availableChannels})`;
+      option.textContent = t("licenseOption", {
+        license: license.type,
+        remaining: Math.max(remaining, 0),
+        total: license.availableChannels,
+      });
       if (remaining <= 0 && license.type !== currentLicense) {
         option.disabled = true;
       }
@@ -568,8 +575,8 @@ function renderCameraLicenseControls(serviceGuid, service, onChange) {
       legacyOption.value = currentLicense;
       legacyOption.textContent =
         state.availableLicenses.length === 0
-          ? `${currentLicense} (licenza presente nel config.json)`
-          : `${currentLicense} (non presente sul nuovo server)`;
+          ? t("licenseInConfig", { license: currentLicense })
+          : t("licenseNotInNewServer", { license: currentLicense });
       select.appendChild(legacyOption);
     }
 
@@ -604,7 +611,7 @@ export function buildAssociationUI(onChange) {
   );
 
   if (oldServices.length === 0) {
-    clearAssociationList("Nessun servizio trovato nel MAPPING del config.json.");
+    clearAssociationList(t("noServiceInConfigMapping"));
     return;
   }
 
@@ -634,7 +641,7 @@ export function buildAssociationUI(onChange) {
     const select = document.createElement("select");
     const placeholder = document.createElement("option");
     placeholder.value = "";
-    placeholder.textContent = "Seleziona nuovo servizio";
+    placeholder.textContent = t("selectNewService");
     select.appendChild(placeholder);
 
     const candidates = newByType[oldService.serviceType] || [];
@@ -705,7 +712,7 @@ export function renderRecapList(container, payload) {
   if (!payload || typeof payload !== "object") {
     const placeholder = document.createElement("div");
     placeholder.className = "placeholder";
-    placeholder.textContent = "Contenuto backup non valido.";
+    placeholder.textContent = t("invalidBackupContent");
     container.appendChild(placeholder);
     return;
   }
@@ -715,13 +722,13 @@ export function renderRecapList(container, payload) {
 
   const channelsHeader = document.createElement("div");
   channelsHeader.className = "recap-section-title";
-  channelsHeader.textContent = `CHANNELS • ${cameraServices.length} camera service`;
+  channelsHeader.textContent = t("channelsCount", { count: cameraServices.length });
   container.appendChild(channelsHeader);
 
   if (cameraServices.length === 0) {
     const empty = document.createElement("div");
     empty.className = "placeholder";
-    empty.textContent = "Nessun camera service trovato.";
+    empty.textContent = t("noCameraServiceFound");
     container.appendChild(empty);
   } else {
     cameraServices.forEach((service, index) => {
@@ -729,11 +736,11 @@ export function renderRecapList(container, payload) {
       row.className = "recap-item";
       const label = document.createElement("div");
       label.className = "recap-item-title";
-      label.textContent = getServiceLabel(service, `Camera service ${index + 1}`);
+      label.textContent = getServiceLabel(service, t("cameraServiceLabel", { index: index + 1 }));
       const list = document.createElement("div");
       list.className = "recap-item-body";
       const cameras = getCameraList(service);
-      list.textContent = cameras.length > 0 ? cameras.join(", ") : "Nessuna camera";
+      list.textContent = cameras.length > 0 ? cameras.join(", ") : t("noCamera");
       row.appendChild(label);
       row.appendChild(list);
       container.appendChild(row);
@@ -742,13 +749,13 @@ export function renderRecapList(container, payload) {
 
   const mappingHeader = document.createElement("div");
   mappingHeader.className = "recap-section-title";
-  mappingHeader.textContent = `MAPPING • ${mappingList.length} servizi`;
+  mappingHeader.textContent = t("mappingCount", { count: mappingList.length });
   container.appendChild(mappingHeader);
 
   if (mappingList.length === 0) {
     const empty = document.createElement("div");
     empty.className = "placeholder";
-    empty.textContent = "Nessun mapping trovato.";
+    empty.textContent = t("noMappingFound");
     container.appendChild(empty);
   } else {
     const mappingRow = document.createElement("div");
