@@ -635,6 +635,14 @@ button.primary:not(:disabled):hover {
   border: 1px solid var(--border);
 }
 
+.arteco-camera-row.is-onvif {
+  border-left: 3px solid #3e8fd3;
+}
+
+.arteco-camera-row.is-rtsp {
+  border-left: 3px solid #b98638;
+}
+
 .arteco-camera-row.is-excluded {
   background: #17191b;
   border-color: #3b4348;
@@ -656,6 +664,14 @@ button.primary:not(:disabled):hover {
   justify-content: space-between;
   gap: 12px;
   font-weight: 700;
+}
+
+.arteco-camera-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .arteco-camera-meta,
@@ -700,6 +716,16 @@ button.primary:not(:disabled):hover {
 .arteco-camera-badge.is-excluded {
   background: rgba(128, 136, 144, 0.18);
   color: #c8d0d6;
+}
+
+.arteco-camera-badge.is-type-onvif {
+  background: rgba(66, 154, 224, 0.18);
+  color: #87cbff;
+}
+
+.arteco-camera-badge.is-type-rtsp {
+  background: rgba(201, 147, 69, 0.18);
+  color: #f4c98f;
 }
 
 @keyframes spin {

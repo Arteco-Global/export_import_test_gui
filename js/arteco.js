@@ -24,6 +24,9 @@ const SOURCE_TYPE_LABELS = {
   33: "Hanwha / Wisenet",
   36: "NVR bridge",
 };
+const ARTECO_SOURCE_TYPE_RTSP = 31;
+const RTSP_MAIN_DEFAULT_PORT = 554;
+const RTSP_SECONDARY_DEFAULT_PORT = 556;
 
 function textOrEmpty(element) {
   return element ? element.textContent.trim() : "";
@@ -48,6 +51,50 @@ function parseUrlSafely(value) {
   } catch (error) {
     return null;
   }
+}
+
+function extractPortFromUrl(value, fallback) {
+  const parsedUrl = parseUrlSafely(value);
+  if (!parsedUrl || !parsedUrl.port) {
+    return fallback;
+  }
+  return parseNumber(parsedUrl.port, fallback);
+}
+
+function parseRtspStreamInfo(value) {
+  if (!value) {
+    return null;
+  }
+
+  const parsedUrl = parseUrlSafely(value);
+  if (!parsedUrl) {
+    return null;
+  }
+
+  const streamRef = `${parsedUrl.pathname || ""}${parsedUrl.search || ""}${parsedUrl.hash || ""}`.replace(
+    /^\/+/,
+    ""
+  );
+  const hasAuth = /^[a-z]+:\/\/[^/]*@/i.test(value);
+  const port = parsedUrl.port ? parseNumber(parsedUrl.port, 0) : 0;
+
+  return {
+    streamRef,
+    port,
+    hostname: parsedUrl.hostname || "",
+    hasAuth,
+    username: decodeURIComponent(parsedUrl.username || ""),
+    password: decodeURIComponent(parsedUrl.password || ""),
+  };
+}
+
+function extractHostFromRtspUrls(mainRtspUrl, secondaryRtspUrl) {
+  const mainInfo = parseRtspStreamInfo(mainRtspUrl);
+  if (mainInfo?.hostname) {
+    return mainInfo.hostname;
+  }
+  const secondaryInfo = parseRtspStreamInfo(secondaryRtspUrl);
+  return secondaryInfo?.hostname || "";
 }
 
 function derivePorts(url, host) {
@@ -85,6 +132,14 @@ function getSourceTypeLabel(type) {
   return SOURCE_TYPE_LABELS[type] || t("typeWithNumber", { type });
 }
 
+function getChannelTypeForSourceType(sourceType) {
+  return sourceType === ARTECO_SOURCE_TYPE_RTSP ? "RtspChannel" : "OnvifChannel";
+}
+
+function isRtspSourceType(sourceType) {
+  return getChannelTypeForSourceType(sourceType) === "RtspChannel";
+}
+
 function parseArtecoVideoSource(node, index) {
   const sourceCfg = node.querySelector("sourcecfg");
   const sourceParams = sourceCfg?.querySelector("s-params");
@@ -93,18 +148,24 @@ function parseArtecoVideoSource(node, index) {
 
   const sourceType = parseNumber(attrOrEmpty(sourceCfg, "type"), -1);
   const name = attrOrEmpty(node, "descr") || t("cameraFallback", { index: index + 1 });
+  const mainRtspUrl = attrOrEmpty(mainStream, "RTSP-url");
+  const secondaryRtspUrl = attrOrEmpty(subStream, "RTSP-url");
   const url = attrOrEmpty(sourceParams, "urladdr");
   const host = attrOrEmpty(sourceParams, "addr");
   const username = attrOrEmpty(sourceParams, "user");
   const password = attrOrEmpty(sourceParams, "pass");
   const enabled = attrOrEmpty(node, "ena") !== "0";
-  const rtspViaTcp = attrOrEmpty(sourceParams, "RTSP-via-TCP") === "1";
+  const rtspViaTcp =
+    attrOrEmpty(mainStream, "RTSP-via-TCP") === "1" ||
+    attrOrEmpty(subStream, "RTSP-via-TCP") === "1" ||
+    attrOrEmpty(sourceParams, "RTSP-via-TCP") === "1";
   const channelId = attrOrEmpty(node, "id");
   const channelIndex = attrOrEmpty(node, "idx");
   const sourceProfile = attrOrEmpty(sourceParams, "src-tk") || attrOrEmpty(sourceParams, "idx");
   const vendor = getSourceTypeLabel(sourceType);
   const geoReferences = node.querySelector("GeoReferences");
-  const connectionInfo = derivePorts(url, host);
+  const rtspHost = extractHostFromRtspUrls(mainRtspUrl, secondaryRtspUrl);
+  const connectionInfo = derivePorts(url || mainRtspUrl || secondaryRtspUrl, rtspHost || host);
   const groupId = attrOrEmpty(sourceParams, "groupId");
   const groupName = attrOrEmpty(sourceParams, "groupName");
   const excludedByGroup = groupId !== "" || groupName !== "";
@@ -114,8 +175,10 @@ function parseArtecoVideoSource(node, index) {
     channelIndex,
     name,
     enabled,
-    host: connectionInfo.ipAddress || host,
+    host: rtspHost || connectionInfo.ipAddress || host,
     url,
+    mainRtspUrl,
+    secondaryRtspUrl,
     username,
     password,
     rtspViaTcp,
@@ -539,8 +602,11 @@ function renderArtecoTargetServices() {
 }
 
 function createArtecoCameraRow(camera) {
+  const isRtspCamera = isRtspSourceType(camera.sourceType);
   const row = document.createElement("label");
-  row.className = `arteco-camera-row${camera.excludedByGroup ? " is-excluded" : ""}`;
+  row.className = `arteco-camera-row ${isRtspCamera ? "is-rtsp" : "is-onvif"}${
+    camera.excludedByGroup ? " is-excluded" : ""
+  }`;
 
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
@@ -574,8 +640,17 @@ function createArtecoCameraRow(camera) {
       ? t("enabled")
       : t("disabled");
 
+  const channelTypeBadge = document.createElement("span");
+  channelTypeBadge.className = `arteco-camera-badge ${isRtspCamera ? "is-type-rtsp" : "is-type-onvif"}`;
+  channelTypeBadge.textContent = isRtspCamera ? t("rtspChannelType") : t("onvifChannelType");
+
+  const badgeGroup = document.createElement("div");
+  badgeGroup.className = "arteco-camera-badges";
+  badgeGroup.appendChild(channelTypeBadge);
+  badgeGroup.appendChild(badge);
+
   titleRow.appendChild(title);
-  titleRow.appendChild(badge);
+  titleRow.appendChild(badgeGroup);
 
   const meta = document.createElement("div");
   meta.className = "arteco-camera-meta";
@@ -735,8 +810,44 @@ function getSelectedTargetService() {
   );
 }
 
-function buildArtecoImportCamera(camera, position, serviceGuid) {
-  const assignedLicense = state.artecoLicenseAssignments.get(camera.artecoId) || "";
+function buildRtspArtecoImportCamera(camera, serviceGuid, assignedLicense) {
+  const rtspMain = camera.mainRtspUrl || camera.url || "";
+  const rtspSecondary = camera.secondaryRtspUrl || camera.mainRtspUrl || camera.url || "";
+  const mainInfo = parseRtspStreamInfo(rtspMain);
+  const secondaryInfo = parseRtspStreamInfo(rtspSecondary);
+  const credentialsSource = mainInfo?.hasAuth ? mainInfo : secondaryInfo?.hasAuth ? secondaryInfo : null;
+  const rtspPortMain = mainInfo?.port || extractPortFromUrl(rtspMain, RTSP_MAIN_DEFAULT_PORT);
+  const rtspPortSecondary =
+    secondaryInfo?.port || extractPortFromUrl(rtspSecondary, RTSP_SECONDARY_DEFAULT_PORT);
+  const rtspMainRef = mainInfo?.streamRef || rtspMain;
+  const rtspSecondaryRef = secondaryInfo?.streamRef || mainInfo?.streamRef || rtspSecondary;
+  return {
+    camera: {
+      descr: camera.name,
+      enabled: camera.enabled,
+      lat: camera.latitude,
+      long: camera.longitude,
+      ipAddress: camera.host,
+      username: credentialsSource ? credentialsSource.username : camera.username,
+      password: credentialsSource ? credentialsSource.password : camera.password,
+      channelType: "RtspChannel",
+      guid_ref: serviceGuid || "",
+      ignorePing: false,
+      protocol: camera.rtspViaTcp ? "TCP" : "UDP",
+      license: assignedLicense,
+      rtspPortMain,
+      rtspPortSecondary,
+      enableMain: true,
+      rtspMain: rtspMainRef,
+      enableSecondary: true,
+      rtspSecondary: rtspSecondaryRef,
+      profiles: [],
+      running: false,
+    },
+  };
+}
+
+function buildOnvifArtecoImportCamera(camera, serviceGuid, assignedLicense) {
   return {
     camera: {
       descr: camera.name,
@@ -762,6 +873,13 @@ function buildArtecoImportCamera(camera, position, serviceGuid) {
       running: false,
     },
   };
+}
+
+function buildArtecoImportCamera(camera, position, serviceGuid) {
+  const assignedLicense = state.artecoLicenseAssignments.get(camera.artecoId) || "";
+  return isRtspSourceType(camera.sourceType)
+    ? buildRtspArtecoImportCamera(camera, serviceGuid, assignedLicense)
+    : buildOnvifArtecoImportCamera(camera, serviceGuid, assignedLicense);
 }
 
 function buildArtecoImportPayload() {
