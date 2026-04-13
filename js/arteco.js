@@ -128,6 +128,20 @@ function derivePorts(url, host) {
   };
 }
 
+function resolveConfiguredPort(value, minusOneFallback, fallbackPort) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return fallbackPort;
+  }
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) {
+    return fallbackPort;
+  }
+
+  return parsed === -1 ? minusOneFallback : parsed;
+}
+
 function getSourceTypeLabel(type) {
   return SOURCE_TYPE_LABELS[type] || t("typeWithNumber", { type });
 }
@@ -152,6 +166,8 @@ function parseArtecoVideoSource(node, index) {
   const secondaryRtspUrl = attrOrEmpty(subStream, "RTSP-url");
   const url = attrOrEmpty(sourceParams, "urladdr");
   const host = attrOrEmpty(sourceParams, "addr");
+  const htmlPort = attrOrEmpty(sourceParams, "html-port");
+  const rtspPort = attrOrEmpty(sourceParams, "rtsp-port");
   const username = attrOrEmpty(sourceParams, "user");
   const password = attrOrEmpty(sourceParams, "pass");
   const enabled = attrOrEmpty(node, "ena") !== "0";
@@ -166,6 +182,8 @@ function parseArtecoVideoSource(node, index) {
   const geoReferences = node.querySelector("GeoReferences");
   const rtspHost = extractHostFromRtspUrls(mainRtspUrl, secondaryRtspUrl);
   const connectionInfo = derivePorts(url || mainRtspUrl || secondaryRtspUrl, rtspHost || host);
+  const resolvedOnvifPort = resolveConfiguredPort(htmlPort, 80, connectionInfo.onvifPort);
+  const resolvedOnvifRtspPort = resolveConfiguredPort(rtspPort, 554, connectionInfo.onvifRtspPort);
   const groupId = attrOrEmpty(sourceParams, "groupId");
   const groupName = attrOrEmpty(sourceParams, "groupName");
   const excludedByGroup = groupId !== "" || groupName !== "";
@@ -194,8 +212,8 @@ function parseArtecoVideoSource(node, index) {
     rawProfile: sourceProfile,
     latitude: parseNumber(attrOrEmpty(geoReferences, "latitude"), 0),
     longitude: parseNumber(attrOrEmpty(geoReferences, "longitude"), 0),
-    onvifPort: connectionInfo.onvifPort,
-    onvifRtspPort: connectionInfo.onvifRtspPort,
+    onvifPort: resolvedOnvifPort,
+    onvifRtspPort: resolvedOnvifRtspPort,
   };
 }
 
